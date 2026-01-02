@@ -1,0 +1,15 @@
+{
+  "name": "chriscandle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A fun and secure way to organize Secret Santa gift exchanges",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+
