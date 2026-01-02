@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-christmas-red: 239 68 68;
+    --color-christmas-green: 34 197 94;
+    --color-christmas-gold: 245 158 11;
+  }
+
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  /* Custom component classes can be added here */
+}
+
+@layer utilities {
+  /* Custom utility classes can be added here */
+}
