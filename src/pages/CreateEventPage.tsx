@@ -135,6 +135,18 @@ export default function CreateEventPage() {
     }
   }
 
+  // Sync participants with store when event is created
+  useEffect(() => {
+    if (currentEvent && participants.length > 0) {
+      // Ensure all participants are in the store
+      participants.forEach((p) => {
+        if (!currentEvent.participants.find((ep) => ep.id === p.id)) {
+          addParticipant(p)
+        }
+      })
+    }
+  }, [currentEvent, participants, addParticipant])
+
   const handleRemoveParticipant = (id: string) => {
     setParticipants(participants.filter((p) => p.id !== id))
     if (currentEvent) {

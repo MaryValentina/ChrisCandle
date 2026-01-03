@@ -15,7 +15,46 @@
 }
 
 @layer components {
-  /* Custom component classes can be added here */
+  /* Bubble font with glitter effect */
+  .bubble-font {
+    font-family: 'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive;
+    letter-spacing: 2px;
+    display: inline-block;
+    position: relative;
+    background: linear-gradient(
+      90deg,
+      #ffffff 0%,
+      #ffd700 10%,
+      #ffffff 20%,
+      #ffd700 30%,
+      #ffffff 40%,
+      #ffd700 50%,
+      #ffffff 60%,
+      #ffd700 70%,
+      #ffffff 80%,
+      #ffd700 90%,
+      #ffffff 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: glitter 3s linear infinite;
+    text-shadow: 
+      3px 3px 0px rgba(0, 0, 0, 0.2),
+      5px 5px 0px rgba(0, 0, 0, 0.1);
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+  }
+
+  /* Glitter shimmer animation */
+  @keyframes glitter {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
 }
 
 @layer utilities {

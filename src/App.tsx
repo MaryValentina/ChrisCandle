@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage'
 import CreateEventPage from './pages/CreateEventPage'
 import EventPage from './pages/EventPage'
 import ResultsPage from './pages/ResultsPage'
+import TestAlgorithmPage from './pages/TestAlgorithmPage'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/create" element={<CreateEventPage />} />
           <Route path="/event" element={<EventPage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route path="/test" element={<TestAlgorithmPage />} />
         </Routes>
       </div>
     </BrowserRouter>
