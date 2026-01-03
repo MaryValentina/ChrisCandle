@@ -131,8 +131,7 @@ export const useEventStore = create<EventStore>()(
         const canRunDraw = 
           participants.length >= 2 &&
           participants.every(p => p.isReady) &&
-          updatedEvent.status !== 'assigned' &&
-          updatedEvent.status !== 'revealed' &&
+          updatedEvent.status !== 'drawn' &&
           updatedEvent.status !== 'completed'
 
         set({
@@ -181,8 +180,7 @@ export const useEventStore = create<EventStore>()(
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
           updatedParticipants.every(p => p.isReady) &&
-          currentEvent.status !== 'assigned' &&
-          currentEvent.status !== 'revealed' &&
+          currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
         set({
@@ -220,8 +218,7 @@ export const useEventStore = create<EventStore>()(
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
           updatedParticipants.every(p => p.isReady) &&
-          currentEvent.status !== 'assigned' &&
-          currentEvent.status !== 'revealed' &&
+          currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
         set({
@@ -253,8 +250,7 @@ export const useEventStore = create<EventStore>()(
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
           updatedParticipants.every(p => p.isReady) &&
-          currentEvent.status !== 'assigned' &&
-          currentEvent.status !== 'revealed' &&
+          currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
         set({
@@ -317,11 +313,11 @@ export const useEventStore = create<EventStore>()(
           set({
             currentEvent: {
               ...currentEvent,
-              status: 'assigned',
+              status: 'drawn',
               updatedAt: new Date().toISOString(),
             },
             assignments: newAssignments,
-            eventStatus: 'assigned',
+            eventStatus: 'drawn',
             hasAssignments: true,
             canRunDraw: false,
             isLoading: false,
@@ -355,7 +351,7 @@ export const useEventStore = create<EventStore>()(
         const updatedEvent = allRevealed && currentEvent
           ? {
               ...currentEvent,
-              status: 'revealed' as EventStatus,
+              status: 'drawn' as EventStatus,
               updatedAt: new Date().toISOString(),
             }
           : currentEvent
@@ -372,7 +368,7 @@ export const useEventStore = create<EventStore>()(
         const currentEvent = get().currentEvent
         if (!currentEvent) return
 
-        const newStatus: EventStatus = currentEvent.status === 'draft' ? 'draft' : 'open'
+        const newStatus: EventStatus = currentEvent.status === 'draft' ? 'draft' : 'active'
         const updatedEvent = {
           ...currentEvent,
           status: newStatus,
@@ -383,7 +379,7 @@ export const useEventStore = create<EventStore>()(
         const canRunDraw = 
           participants.length >= 2 &&
           participants.every(p => p.isReady) &&
-          (newStatus === 'draft' || newStatus === 'open')
+          (newStatus === 'draft' || newStatus === 'active')
 
         set({
           assignments: [],
@@ -413,7 +409,7 @@ export const useEventStore = create<EventStore>()(
         // Only persist draft and open events
         currentEvent: 
           state.currentEvent && 
-          (state.currentEvent.status === 'draft' || state.currentEvent.status === 'open')
+          (state.currentEvent.status === 'draft' || state.currentEvent.status === 'active')
             ? state.currentEvent
             : null,
         // Don't persist assignments (they should be regenerated)

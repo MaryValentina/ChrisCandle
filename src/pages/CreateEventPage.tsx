@@ -7,9 +7,10 @@ import { format } from 'date-fns'
 import QRCodeSVG from 'react-qr-code'
 import { nanoid } from 'nanoid'
 import { useEventStore } from '../stores/eventStore'
+import { createEvent as createFirebaseEvent } from '../lib/firebase'
 import ParticipantForm from '../components/features/ParticipantForm'
 import ParticipantCard from '../components/features/ParticipantCard'
-import type { Participant } from '../types'
+import type { Participant, EventData } from '../types'
 
 // Zod schema for event details
 const eventDetailsSchema = z.object({
@@ -39,6 +40,10 @@ export default function CreateEventPage() {
   const [exclusions, setExclusions] = useState<string[][]>([])
   const [shareableLink, setShareableLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [firebaseEventId, setFirebaseEventId] = useState<string | null>(null)
 
   const {
     register,
@@ -170,24 +175,81 @@ export default function CreateEventPage() {
     setExclusions(exclusions.filter((_, i) => i !== index))
   }
 
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     if (!currentEvent) return
 
-    // Update event with participants and exclusions
-    updateEvent({
-      participants,
-      exclusions: exclusions.length > 0 ? exclusions : undefined,
-      status: 'open',
-    })
+    setIsSaving(true)
+    setSaveError(null)
+    setSaveSuccess(false)
 
-    // Generate shareable link
-    const link = `${window.location.origin}/event/${currentEvent.id}`
-    setShareableLink(link)
+    try {
+      // Prepare event data for Firebase
+      // Note: createEvent expects EventData without createdAt/updatedAt
+      // The participants array should include all participant data (with IDs preserved for now)
+      const eventData: Omit<EventData, 'createdAt' | 'updatedAt'> = {
+        name: currentEvent.name,
+        date: currentEvent.date,
+        spendingLimit: currentEvent.spendingLimit,
+        description: currentEvent.description,
+        organizerId: currentEvent.organizerId,
+        participants: participants.map(p => ({
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          wishlist: p.wishlist,
+          isReady: p.isReady ?? false,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+        exclusions: exclusions.length > 0 ? exclusions : undefined,
+        status: 'active' as const,
+      }
 
-    // Clear draft
-    localStorage.removeItem(DRAFT_STORAGE_KEY)
+      // Save to Firebase
+      const eventId = await createFirebaseEvent(eventData)
+      setFirebaseEventId(eventId)
 
-    setCurrentStep(3)
+      // Update local store with Firebase event ID
+      updateEvent({
+        id: eventId,
+        participants,
+        exclusions: exclusions.length > 0 ? exclusions : undefined,
+        status: 'active',
+      })
+
+      // Generate shareable link using Firebase event ID
+      const link = `${window.location.origin}/event/${eventId}`
+      setShareableLink(link)
+
+      // Copy link to clipboard automatically
+      try {
+        await navigator.clipboard.writeText(link)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 3000)
+      } catch (clipboardError) {
+        console.warn('Failed to copy to clipboard:', clipboardError)
+      }
+
+      setSaveSuccess(true)
+      
+      // Clear draft
+      localStorage.removeItem(DRAFT_STORAGE_KEY)
+
+      // Move to review step
+      setCurrentStep(3)
+
+      // Auto-redirect to event page after 3 seconds
+      setTimeout(() => {
+        navigate(`/event`)
+      }, 3000)
+    } catch (error) {
+      console.error('Error saving event to Firebase:', error)
+      setSaveError(error instanceof Error ? error.message : 'Failed to save event. Please try again.')
+      setSaveSuccess(false)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const copyToClipboard = async () => {
@@ -463,27 +525,69 @@ export default function CreateEventPage() {
               </div>
             )}
 
+            {/* Error Message */}
+            {saveError && (
+              <div className="bg-christmas-red-50 border-2 border-christmas-red-300 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-christmas-red-700 mb-1">Error Saving Event</h4>
+                    <p className="text-sm text-christmas-red-600">{saveError}</p>
+                  </div>
+                  <button
+                    onClick={() => setSaveError(null)}
+                    className="text-christmas-red-600 hover:text-christmas-red-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-4">
               <button
                 onClick={() => setCurrentStep(1)}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+                disabled={isSaving}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ← Back
               </button>
               <button
                 onClick={handleFinalize}
-                disabled={participants.length < 2}
-                className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-300 disabled:cursor-not-allowed"
+                disabled={participants.length < 2 || isSaving}
+                className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Review & Share →
+                {isSaving ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Saving to Firebase...</span>
+                  </>
+                ) : (
+                  'Review & Share →'
+                )}
               </button>
             </div>
           </div>
         )}
 
         {/* Step 3: Review & Share */}
-        {currentStep === 3 && currentEvent && (
+        {currentStep === 3 && (currentEvent || firebaseEventId) && (
           <div className="space-y-6">
+            {/* Success Message */}
+            {saveSuccess && (
+              <div className="bg-christmas-green-50 border-2 border-christmas-green-300 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">✅</span>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-christmas-green-700 mb-1">Event Saved Successfully!</h4>
+                    <p className="text-sm text-christmas-green-600">
+                      Your event has been saved to Firebase. Link copied to clipboard! Redirecting to event page...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8">
               <h2 className="text-2xl md:text-3xl font-bold text-christmas-gold-600 mb-4">
                 🎉 Event Created!
@@ -496,14 +600,22 @@ export default function CreateEventPage() {
               <div className="bg-gradient-to-r from-christmas-red-50 to-christmas-green-50 rounded-xl p-6 mb-6">
                 <h3 className="text-xl font-bold text-christmas-red-600 mb-4">Event Summary</h3>
                 <div className="space-y-2 text-gray-700">
+                  {firebaseEventId && (
+                    <div>
+                      <span className="font-semibold">Event ID:</span>{' '}
+                      <span className="font-mono text-sm bg-white px-2 py-1 rounded">
+                        {firebaseEventId}
+                      </span>
+                    </div>
+                  )}
                   <div>
-                    <span className="font-semibold">Name:</span> {currentEvent.name}
+                    <span className="font-semibold">Name:</span> {currentEvent?.name || 'Event'}
                   </div>
                   <div>
                     <span className="font-semibold">Date:</span>{' '}
-                    {format(new Date(currentEvent.date), 'MMMM d, yyyy')}
+                    {currentEvent?.date && format(new Date(currentEvent.date), 'MMMM d, yyyy')}
                   </div>
-                  {currentEvent.spendingLimit && (
+                  {currentEvent?.spendingLimit && (
                     <div>
                       <span className="font-semibold">Budget:</span> ${currentEvent.spendingLimit}
                     </div>
@@ -554,12 +666,14 @@ export default function CreateEventPage() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button
-                  onClick={() => navigate(`/event`)}
-                  className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
-                >
-                  Go to Event →
-                </button>
+                {firebaseEventId && (
+                  <button
+                    onClick={() => navigate(`/event`)}
+                    className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+                  >
+                    Go to Event →
+                  </button>
+                )}
                 <button
                   onClick={() => navigate('/')}
                   className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"

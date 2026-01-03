@@ -28,14 +28,10 @@ export default function EventCard({
     switch (status) {
       case 'draft':
         return 'bg-gray-100 text-gray-700'
-      case 'open':
+      case 'active':
         return 'bg-christmas-green-100 text-christmas-green-700'
-      case 'closed':
-        return 'bg-christmas-gold-100 text-christmas-gold-700'
-      case 'assigned':
+      case 'drawn':
         return 'bg-christmas-red-100 text-christmas-red-700'
-      case 'revealed':
-        return 'bg-purple-100 text-purple-700'
       case 'completed':
         return 'bg-blue-100 text-blue-700'
       default:
@@ -46,8 +42,7 @@ export default function EventCard({
   const canStartDraw =
     event.participants.length >= 2 &&
     event.participants.every(p => p.isReady) &&
-    event.status !== 'assigned' &&
-    event.status !== 'revealed' &&
+    event.status !== 'drawn' &&
     event.status !== 'completed'
 
   return (
