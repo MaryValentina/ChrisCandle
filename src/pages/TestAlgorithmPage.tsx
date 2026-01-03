@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { generateAssignments, ImpossibleAssignmentError } from '../lib/shuffle'
+import { testConnection } from '../lib/firebase'
 import type { Participant } from '../types'
 
 export default function TestAlgorithmPage() {
@@ -11,6 +12,12 @@ export default function TestAlgorithmPage() {
     error?: string
   }>>([])
   const [isRunning, setIsRunning] = useState(false)
+  const [firebaseTestResult, setFirebaseTestResult] = useState<{
+    success: boolean | null
+    message: string
+    error?: string
+  }>({ success: null, message: '' })
+  const [isTestingFirebase, setIsTestingFirebase] = useState(false)
 
   const runTests = () => {
     setIsRunning(true)
@@ -228,6 +235,31 @@ export default function TestAlgorithmPage() {
     setIsRunning(false)
   }
 
+  const testFirebaseConnection = async () => {
+    setIsTestingFirebase(true)
+    setFirebaseTestResult({ success: null, message: 'Testing connection...' })
+    
+    console.log('🔥 Starting Firebase connection test...')
+    
+    try {
+      const result = await testConnection()
+      console.log('✅ Firebase connection test result:', result)
+      setFirebaseTestResult({
+        success: result,
+        message: result ? '✅ Firebase connection successful!' : '❌ Connection failed',
+      })
+    } catch (error) {
+      console.error('❌ Firebase connection test error:', error)
+      setFirebaseTestResult({
+        success: false,
+        message: '❌ Firebase connection failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+    } finally {
+      setIsTestingFirebase(false)
+    }
+  }
+
   const getParticipantName = (id: string, participants: Participant[]) => {
     return participants.find((p) => p.id === id)?.name || id
   }
@@ -237,20 +269,74 @@ export default function TestAlgorithmPage() {
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
           <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
-            🧪 Algorithm Test Suite
+            🧪 Test Suite
           </h1>
           <p className="text-gray-600 mb-6">
-            Test the Secret Santa shuffle algorithm with various scenarios
+            Test the Secret Santa shuffle algorithm and Firebase connection
           </p>
 
-          <button
-            onClick={runTests}
-            disabled={isRunning}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isRunning ? 'Running Tests...' : 'Run All Tests'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button
+              onClick={runTests}
+              disabled={isRunning}
+              className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isRunning ? 'Running Tests...' : 'Run Algorithm Tests'}
+            </button>
+            <button
+              onClick={testFirebaseConnection}
+              disabled={isTestingFirebase}
+              className="px-6 py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {isTestingFirebase ? 'Testing...' : 'Test Firebase Connection'}
+            </button>
+          </div>
         </div>
+
+        {/* Firebase Test Result */}
+        {firebaseTestResult.success !== null && (
+          <div
+            className={`bg-white rounded-xl shadow-christmas-lg p-6 mb-6 border-2 ${
+              firebaseTestResult.success
+                ? 'border-christmas-green-300'
+                : 'border-christmas-red-300'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 mb-1">Firebase Connection Test</h3>
+                <p
+                  className={`font-semibold ${
+                    firebaseTestResult.success
+                      ? 'text-christmas-green-600'
+                      : 'text-christmas-red-600'
+                  }`}
+                >
+                  {firebaseTestResult.message}
+                </p>
+                {firebaseTestResult.error && (
+                  <p className="text-sm text-gray-600 mt-2">Error: {firebaseTestResult.error}</p>
+                )}
+                {firebaseTestResult.success && (
+                  <div className="mt-4 p-4 bg-christmas-green-50 rounded-lg">
+                    <p className="text-sm text-gray-700">
+                      ✅ Firestore and Authentication services are connected and ready to use.
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div
+                className={`text-3xl ${
+                  firebaseTestResult.success
+                    ? 'text-christmas-green-500'
+                    : 'text-christmas-red-500'
+                }`}
+              >
+                {firebaseTestResult.success ? '✅' : '❌'}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Test Results */}
         {testResults.length > 0 && (

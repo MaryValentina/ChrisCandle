@@ -17,19 +17,22 @@
 
 /* Festive Landing Page Styles */
 .christmas-landing {
-  min-height: 100vh;
+  min-height: 100vh !important;
+  width: 100% !important;
   background: linear-gradient(
     135deg,
     var(--christmas-deep-red) 0%,
     var(--christmas-red-alt) 50%,
     var(--christmas-deep-red) 100%
-  );
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  position: relative;
-  overflow: hidden;
+  ) !important;
+  background-color: #990000 !important; /* Fallback */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2rem !important;
+  position: relative !important;
+  overflow: hidden !important;
+  margin: 0 !important;
 }
 
 /* Elegant Cursive Heading */

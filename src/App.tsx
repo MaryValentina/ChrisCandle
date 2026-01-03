@@ -9,16 +9,45 @@ import TestAlgorithmPage from './pages/TestAlgorithmPage'
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/create" element={<CreateEventPage />} />
-          <Route path="/event" element={<EventPage />} />
-          <Route path="/results" element={<ResultsPage />} />
-          <Route path="/test" element={<TestAlgorithmPage />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/create"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <CreateEventPage />
+            </div>
+          }
+        />
+        <Route
+          path="/event"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <EventPage />
+            </div>
+          }
+        />
+        <Route
+          path="/results"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <ResultsPage />
+            </div>
+          }
+        />
+        <Route
+          path="/test"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <TestAlgorithmPage />
+            </div>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   )
 }
