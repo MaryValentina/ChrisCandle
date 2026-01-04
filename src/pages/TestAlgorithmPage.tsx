@@ -25,11 +25,12 @@ export default function TestAlgorithmPage() {
 
     // Test Case 1: Normal case (4 participants, no exclusions)
     try {
+      const now = new Date().toISOString()
       const participants1: Participant[] = [
-        { id: '1', name: 'Alice' },
-        { id: '2', name: 'Bob' },
-        { id: '3', name: 'Charlie' },
-        { id: '4', name: 'Diana' },
+        { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+        { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+        { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
+        { id: '4', eventId: 'test-event', name: 'Diana', joinedAt: now },
       ]
       const assignments1 = generateAssignments(participants1)
       
@@ -59,11 +60,12 @@ export default function TestAlgorithmPage() {
 
     // Test Case 2: With exclusions (partners can't get each other)
     try {
+      const now = new Date().toISOString()
       const participants2: Participant[] = [
-        { id: '1', name: 'Alice' },
-        { id: '2', name: 'Bob' },
-        { id: '3', name: 'Charlie' },
-        { id: '4', name: 'Diana' },
+        { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+        { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+        { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
+        { id: '4', eventId: 'test-event', name: 'Diana', joinedAt: now },
       ]
       const exclusions2 = [['1', '2'], ['3', '4']] // Partners
       const assignments2 = generateAssignments(participants2, exclusions2)
@@ -103,10 +105,11 @@ export default function TestAlgorithmPage() {
     // Test Case 3: Edge case (3 participants, 1 exclusion)
     // Note: This is a challenging edge case that may require more attempts
     try {
+      const now = new Date().toISOString()
       const participants3: Participant[] = [
-        { id: '1', name: 'Alice' },
-        { id: '2', name: 'Bob' },
-        { id: '3', name: 'Charlie' },
+        { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+        { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+        { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
       ]
       const exclusions3 = [['1', '2']] // Alice can't get Bob
       const assignments3 = generateAssignments(participants3, exclusions3, { maxAttempts: 5000 })
@@ -145,9 +148,12 @@ export default function TestAlgorithmPage() {
 
     // Test Case 4: Large group (10+ participants)
     try {
+      const now = new Date().toISOString()
       const participants4: Participant[] = Array.from({ length: 12 }, (_, i) => ({
         id: String(i + 1),
+        eventId: 'test-event',
         name: `Person ${i + 1}`,
+        joinedAt: now,
       }))
       const assignments4 = generateAssignments(participants4)
       
@@ -176,9 +182,10 @@ export default function TestAlgorithmPage() {
 
     // Test Case 5: Impossible case (2 participants with exclusion)
     try {
+      const now = new Date().toISOString()
       const participants5: Participant[] = [
-        { id: '1', name: 'Alice' },
-        { id: '2', name: 'Bob' },
+        { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+        { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
       ]
       const exclusions5 = [['1', '2']]
       generateAssignments(participants5, exclusions5)
@@ -202,9 +209,10 @@ export default function TestAlgorithmPage() {
 
     // Test Case 6: Minimum participants (2, no exclusions)
     try {
+      const now = new Date().toISOString()
       const participants6: Participant[] = [
-        { id: '1', name: 'Alice' },
-        { id: '2', name: 'Bob' },
+        { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+        { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
       ]
       const assignments6 = generateAssignments(participants6)
       
@@ -380,35 +388,38 @@ export default function TestAlgorithmPage() {
                     <div className="space-y-2">
                       {Array.from(result.assignments.entries()).map(([giver, receiver], idx) => {
                         // Get participant names for display
+                        const now = new Date().toISOString()
                         const participants: Participant[] =
                           index === 0
                             ? [
-                                { id: '1', name: 'Alice' },
-                                { id: '2', name: 'Bob' },
-                                { id: '3', name: 'Charlie' },
-                                { id: '4', name: 'Diana' },
+                                { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+                                { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+                                { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
+                                { id: '4', eventId: 'test-event', name: 'Diana', joinedAt: now },
                               ]
                             : index === 1
                             ? [
-                                { id: '1', name: 'Alice' },
-                                { id: '2', name: 'Bob' },
-                                { id: '3', name: 'Charlie' },
-                                { id: '4', name: 'Diana' },
+                                { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+                                { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+                                { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
+                                { id: '4', eventId: 'test-event', name: 'Diana', joinedAt: now },
                               ]
                             : index === 2
                             ? [
-                                { id: '1', name: 'Alice' },
-                                { id: '2', name: 'Bob' },
-                                { id: '3', name: 'Charlie' },
+                                { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+                                { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
+                                { id: '3', eventId: 'test-event', name: 'Charlie', joinedAt: now },
                               ]
                             : index === 3
                             ? Array.from({ length: 12 }, (_, i) => ({
                                 id: String(i + 1),
+                                eventId: 'test-event',
                                 name: `Person ${i + 1}`,
+                                joinedAt: now,
                               }))
                             : [
-                                { id: '1', name: 'Alice' },
-                                { id: '2', name: 'Bob' },
+                                { id: '1', eventId: 'test-event', name: 'Alice', joinedAt: now },
+                                { id: '2', eventId: 'test-event', name: 'Bob', joinedAt: now },
                               ]
 
                         return (

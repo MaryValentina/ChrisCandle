@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { v4 as uuidv4 } from 'uuid'
 import type { Event, Participant, Assignment, EventStatus } from '../types'
 import { generateAssignments, ImpossibleAssignmentError } from '../lib/shuffle'
+import { saveAssignments, updateEvent as updateEventInFirebase } from '../lib/firebase'
 
 /**
  * State interface for the event store
@@ -27,7 +29,7 @@ interface EventStoreState {
  */
 interface EventStoreActions {
   // Event management
-  createEvent: (eventData: Omit<Event, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'participants'>) => void
+  createEvent: (eventData: Omit<Event, 'id' | 'status' | 'createdAt' | 'participants'>) => void
   updateEvent: (updates: Partial<Event>) => void
   resetEvent: () => void
   
@@ -39,7 +41,7 @@ interface EventStoreActions {
   markParticipantNotReady: (id: string) => void
   
   // Assignment management
-  runDraw: () => void
+  runDraw: () => Promise<void>
   revealAssignment: (giverId: string) => void
   clearAssignments: () => void
   
@@ -58,14 +60,14 @@ type EventStore = EventStoreState & EventStoreActions
  * Generate a unique ID for events
  */
 function generateEventId(): string {
-  return `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  return uuidv4()
 }
 
 /**
  * Generate a unique ID for participants
  */
 function generateParticipantId(): string {
-  return `participant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  return uuidv4()
 }
 
 /**
@@ -88,7 +90,7 @@ export const useEventStore = create<EventStore>()(
 
       // Computed values (accessed via selectors)
       participants: [],
-      eventStatus: 'draft' as EventStatus,
+      eventStatus: 'active' as EventStatus,
       canRunDraw: false,
       hasAssignments: false,
 
@@ -97,17 +99,17 @@ export const useEventStore = create<EventStore>()(
         const newEvent: Event = {
           ...eventData,
           id: generateEventId(),
-          status: 'draft',
+          code: eventData.code || '', // TODO: Generate code
+          status: 'active',
           participants: [],
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         }
         
         set({
           currentEvent: newEvent,
           assignments: [],
           participants: [],
-          eventStatus: 'draft',
+          eventStatus: 'active',
           canRunDraw: false,
           hasAssignments: false,
           error: null,
@@ -124,7 +126,6 @@ export const useEventStore = create<EventStore>()(
         const updatedEvent = {
           ...currentEvent,
           ...updates,
-          updatedAt: new Date().toISOString(),
         }
 
         const participants = updatedEvent.participants || []
@@ -148,7 +149,7 @@ export const useEventStore = create<EventStore>()(
           currentEvent: null,
           assignments: [],
           participants: [],
-          eventStatus: 'draft',
+          eventStatus: 'active',
           canRunDraw: false,
           hasAssignments: false,
           error: null,
@@ -187,7 +188,6 @@ export const useEventStore = create<EventStore>()(
           currentEvent: {
             ...currentEvent,
             participants: updatedParticipants,
-            updatedAt: new Date().toISOString(),
           },
           participants: updatedParticipants,
           canRunDraw,
@@ -226,7 +226,6 @@ export const useEventStore = create<EventStore>()(
             ...currentEvent,
             participants: updatedParticipants,
             exclusions: updatedExclusions,
-            updatedAt: new Date().toISOString(),
           },
           participants: updatedParticipants,
           assignments: updatedAssignments,
@@ -257,7 +256,6 @@ export const useEventStore = create<EventStore>()(
           currentEvent: {
             ...currentEvent,
             participants: updatedParticipants,
-            updatedAt: new Date().toISOString(),
           },
           participants: updatedParticipants,
           canRunDraw,
@@ -274,7 +272,7 @@ export const useEventStore = create<EventStore>()(
       },
 
       // Assignment management actions
-      runDraw: () => {
+      runDraw: async () => {
         const state = get()
         const currentEvent = state.currentEvent
 
@@ -285,7 +283,7 @@ export const useEventStore = create<EventStore>()(
 
         if (!state.canRunDraw) {
           set({ 
-            error: 'Cannot run draw: Need at least 2 ready participants and event must not be assigned' 
+            error: 'Cannot run draw: Need at least 2 ready participants and event must not be drawn or completed' 
           })
           return
         }
@@ -310,11 +308,33 @@ export const useEventStore = create<EventStore>()(
             })
           )
 
+          // Save assignments to Firebase
+          try {
+            await saveAssignments(currentEvent.id, newAssignments.map(a => ({
+              eventId: a.eventId,
+              giverId: a.giverId,
+              receiverId: a.receiverId,
+              createdAt: a.createdAt,
+              revealedAt: a.revealedAt,
+            })))
+
+            // Update event status in Firebase
+            await updateEventInFirebase(currentEvent.id, {
+              status: 'drawn',
+            })
+
+            console.log('✅ Draw completed and saved to Firebase')
+          } catch (firebaseError) {
+            console.error('❌ Error saving to Firebase:', firebaseError)
+            // Still update local state even if Firebase fails
+            // This allows the app to work offline
+          }
+
+          // Update local state
           set({
             currentEvent: {
               ...currentEvent,
               status: 'drawn',
-              updatedAt: new Date().toISOString(),
             },
             assignments: newAssignments,
             eventStatus: 'drawn',
@@ -334,6 +354,7 @@ export const useEventStore = create<EventStore>()(
             isLoading: false,
             error: errorMessage,
           })
+          throw error // Re-throw so caller can handle it
         }
       },
 
@@ -351,15 +372,14 @@ export const useEventStore = create<EventStore>()(
         const updatedEvent = allRevealed && currentEvent
           ? {
               ...currentEvent,
-              status: 'drawn' as EventStatus,
-              updatedAt: new Date().toISOString(),
+              status: 'completed' as EventStatus,
             }
           : currentEvent
 
         set({
           assignments: updatedAssignments,
           currentEvent: updatedEvent,
-          eventStatus: updatedEvent?.status || 'draft',
+          eventStatus: updatedEvent?.status || 'active',
           hasAssignments: updatedAssignments.length > 0,
         })
       },
@@ -368,18 +388,17 @@ export const useEventStore = create<EventStore>()(
         const currentEvent = get().currentEvent
         if (!currentEvent) return
 
-        const newStatus: EventStatus = currentEvent.status === 'draft' ? 'draft' : 'active'
+        const newStatus: EventStatus = 'active'
         const updatedEvent = {
           ...currentEvent,
           status: newStatus,
-          updatedAt: new Date().toISOString(),
         }
 
         const participants = updatedEvent.participants || []
         const canRunDraw = 
           participants.length >= 2 &&
           participants.every(p => p.isReady) &&
-          (newStatus === 'draft' || newStatus === 'active')
+          newStatus === 'active'
 
         set({
           assignments: [],
@@ -406,10 +425,10 @@ export const useEventStore = create<EventStore>()(
     {
       name: 'chriscandle-event-store', // localStorage key
       partialize: (state) => ({
-        // Only persist draft and open events
+        // Only persist active events
         currentEvent: 
           state.currentEvent && 
-          (state.currentEvent.status === 'draft' || state.currentEvent.status === 'active')
+          state.currentEvent.status === 'active'
             ? state.currentEvent
             : null,
         // Don't persist assignments (they should be regenerated)

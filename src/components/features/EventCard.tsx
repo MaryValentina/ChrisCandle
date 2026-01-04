@@ -26,14 +26,14 @@ export default function EventCard({
 
   const getStatusColor = (status: Event['status']) => {
     switch (status) {
-      case 'draft':
-        return 'bg-gray-100 text-gray-700'
       case 'active':
         return 'bg-christmas-green-100 text-christmas-green-700'
       case 'drawn':
         return 'bg-christmas-red-100 text-christmas-red-700'
       case 'completed':
         return 'bg-blue-100 text-blue-700'
+      case 'expired':
+        return 'bg-gray-100 text-gray-700'
       default:
         return 'bg-gray-100 text-gray-700'
     }
@@ -43,7 +43,8 @@ export default function EventCard({
     event.participants.length >= 2 &&
     event.participants.every(p => p.isReady) &&
     event.status !== 'drawn' &&
-    event.status !== 'completed'
+    event.status !== 'completed' &&
+    event.status !== 'expired'
 
   return (
     <div className="bg-gradient-to-br from-white to-christmas-red-50 rounded-2xl shadow-christmas-lg border-2 border-christmas-red-200 hover:border-christmas-green-300 transition-all duration-300 p-6 md:p-8 relative overflow-hidden">
@@ -84,11 +85,11 @@ export default function EventCard({
           </div>
         </div>
 
-        {event.spendingLimit && (
+        {event.budget && (
           <div className="p-4 bg-christmas-gold-50 rounded-xl">
             <div className="text-sm text-gray-600 mb-1">💰 Budget</div>
             <div className="font-bold text-christmas-gold-600">
-              ${event.spendingLimit}
+              ${event.budget}
             </div>
           </div>
         )}

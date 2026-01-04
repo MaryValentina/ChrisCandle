@@ -3,6 +3,8 @@
  * 
  * This file contains all the core interfaces and types used throughout the application.
  * All types are designed to be Firestore-compatible.
+ * 
+ * Code-based approach: Events are accessed via a shareable code instead of direct ID links.
  */
 
 /**
@@ -12,53 +14,47 @@
 export type FirestoreDate = string | Date
 
 /**
- * Represents a participant in a Secret Santa event.
- * Must match the Participant interface expected by the shuffle algorithm.
- * Compatible with Firestore document structure.
+ * Represents a user (organizer) of Secret Santa events
+ * Compatible with Firestore document structure
  */
-export interface Participant {
-  /** Unique identifier for the participant */
+export interface User {
+  /** Unique identifier for the user (Firestore document ID) */
   id: string
-  /** Display name of the participant */
+  /** Email address (used for authentication and notifications) */
+  email: string
+  /** Display name of the user */
   name: string
-  /** Email address for notifications */
-  email?: string
-  /** Phone number (optional) */
-  phone?: string
-  /** Wishlist items or preferences */
-  wishlist?: string[]
-  /** Whether the participant has confirmed they're ready */
-  isReady?: boolean
-  /** When the participant was added (Firestore timestamp) */
-  createdAt?: FirestoreDate
-  /** When the participant was last updated (Firestore timestamp) */
-  updatedAt?: FirestoreDate
+  /** When the user account was created (Firestore timestamp) */
+  createdAt: FirestoreDate
 }
 
 /**
  * Status of a Secret Santa event
- * Matches the lifecycle: draft → active → drawn → completed
+ * Matches the lifecycle: active → drawn → completed | expired
  */
 export type EventStatus = 
-  | 'draft'      // Event is being created, not yet active
   | 'active'     // Event is active and open for participants
   | 'drawn'      // Assignments have been generated
   | 'completed'  // Event is complete
+  | 'expired'    // Event has expired (past the exchange date)
 
 /**
  * Represents a Secret Santa event
  * Fully compatible with Firestore document structure
+ * Code-based: Events are accessed via a shareable code
  */
 export interface Event {
   /** Unique identifier for the event (Firestore document ID) */
   id: string
+  /** Shareable code for accessing the event (e.g., "ABC123") */
+  code: string
   /** Name of the event */
   name: string
   /** Date of the gift exchange (Firestore-compatible date) */
   date: FirestoreDate
   /** Spending limit/budget (optional) */
-  spendingLimit?: number
-  /** ID of the event organizer */
+  budget?: number
+  /** ID of the event organizer (references User.id) */
   organizerId: string
   /** List of participants in the event */
   participants: Participant[]
@@ -70,8 +66,32 @@ export interface Event {
   description?: string
   /** When the event was created (Firestore timestamp - required for Firestore) */
   createdAt: FirestoreDate
-  /** When the event was last updated (Firestore timestamp - required for Firestore) */
-  updatedAt: FirestoreDate
+}
+
+/**
+ * Represents a participant in a Secret Santa event.
+ * Must match the Participant interface expected by the shuffle algorithm.
+ * Compatible with Firestore document structure.
+ */
+export interface Participant {
+  /** Unique identifier for the participant */
+  id: string
+  /** ID of the event this participant belongs to (references Event.id) */
+  eventId: string
+  /** Display name of the participant */
+  name: string
+  /** Email address for notifications */
+  email?: string
+  /** Wishlist items or preferences */
+  wishlist?: string[]
+  /** Whether the participant has confirmed they're ready */
+  isReady?: boolean
+  /** When the participant joined the event (Firestore timestamp) */
+  joinedAt: FirestoreDate
+  /** Optional: ID of the assignment where this participant is the giver (references Assignment.id) */
+  giverOf?: string
+  /** Optional: ID of the assignment where this participant is the receiver (references Assignment.id) */
+  receiverOf?: string
 }
 
 /**
@@ -79,18 +99,16 @@ export interface Event {
  * Compatible with Firestore document structure
  */
 export interface Assignment {
-  /** ID of the event this assignment belongs to */
+  /** ID of the event this assignment belongs to (references Event.id) */
   eventId: string
-  /** ID of the person giving the gift (giver) */
+  /** ID of the person giving the gift (giver) - references Participant.id */
   giverId: string
-  /** ID of the person receiving the gift (receiver) */
+  /** ID of the person receiving the gift (receiver) - references Participant.id */
   receiverId: string
   /** When the assignment was revealed to the giver (null if not yet revealed) */
   revealedAt?: FirestoreDate | null
   /** When the assignment was created (Firestore timestamp - required for Firestore) */
   createdAt: FirestoreDate
-  /** When the assignment was last updated (Firestore timestamp) */
-  updatedAt?: FirestoreDate
 }
 
 /**
@@ -108,6 +126,12 @@ export interface AppState {
   /** Assignments for the current event */
   assignments?: Assignment[]
 }
+
+/**
+ * Firestore document data type for User (without the document ID)
+ * Useful when creating/updating Firestore documents
+ */
+export type UserData = Omit<User, 'id'>
 
 /**
  * Firestore document data type for Event (without the document ID)
@@ -128,48 +152,54 @@ export type ParticipantData = Omit<Participant, 'id'>
 export type AssignmentData = Omit<Assignment, 'id'>
 
 /**
+ * Example user data for testing and development
+ */
+export const exampleUser: User = {
+  id: 'user-1',
+  email: 'organizer@example.com',
+  name: 'John Organizer',
+  createdAt: new Date('2024-11-01').toISOString()
+}
+
+/**
  * Example participant data for testing and development
  */
 export const exampleParticipants: Participant[] = [
   {
     id: '1',
+    eventId: 'event-1',
     name: 'Alice Johnson',
     email: 'alice@example.com',
-    phone: '+1-555-0101',
     wishlist: ['Books', 'Coffee', 'Art supplies'],
     isReady: true,
-    createdAt: new Date('2024-11-01').toISOString(),
-    updatedAt: new Date('2024-11-15').toISOString()
+    joinedAt: new Date('2024-11-01').toISOString()
   },
   {
     id: '2',
+    eventId: 'event-1',
     name: 'Bob Smith',
     email: 'bob@example.com',
-    phone: '+1-555-0102',
     wishlist: ['Video games', 'Headphones'],
     isReady: true,
-    createdAt: new Date('2024-11-01').toISOString(),
-    updatedAt: new Date('2024-11-15').toISOString()
+    joinedAt: new Date('2024-11-01').toISOString()
   },
   {
     id: '3',
+    eventId: 'event-1',
     name: 'Charlie Brown',
     email: 'charlie@example.com',
-    phone: '+1-555-0103',
     wishlist: ['Board games', 'Puzzles'],
     isReady: false,
-    createdAt: new Date('2024-11-01').toISOString(),
-    updatedAt: new Date('2024-11-15').toISOString()
+    joinedAt: new Date('2024-11-01').toISOString()
   },
   {
     id: '4',
+    eventId: 'event-1',
     name: 'Diana Prince',
     email: 'diana@example.com',
-    phone: '+1-555-0104',
     wishlist: ['Fitness gear', 'Yoga mat'],
     isReady: true,
-    createdAt: new Date('2024-11-01').toISOString(),
-    updatedAt: new Date('2024-11-15').toISOString()
+    joinedAt: new Date('2024-11-01').toISOString()
   }
 ]
 
@@ -178,10 +208,11 @@ export const exampleParticipants: Participant[] = [
  */
 export const exampleEvent: Event = {
   id: 'event-1',
+  code: 'ABC123',
   name: 'Office Secret Santa 2024',
   date: new Date('2024-12-25').toISOString(),
-  spendingLimit: 25,
-  organizerId: '1',
+  budget: 25,
+  organizerId: 'user-1',
   participants: exampleParticipants,
   exclusions: [
     ['1', '2'], // Alice and Bob are partners, can't get each other
@@ -189,8 +220,7 @@ export const exampleEvent: Event = {
   ],
   status: 'active',
   description: 'Our annual office Secret Santa exchange. Please keep assignments secret until the reveal party!',
-  createdAt: new Date('2024-11-01').toISOString(),
-  updatedAt: new Date('2024-11-15').toISOString()
+  createdAt: new Date('2024-11-01').toISOString()
 }
 
 /**
@@ -241,4 +271,4 @@ export const exampleAppState: AppState = {
 // - id: string (required)
 // - name: string (required)
 // - email?: string (optional)
-// Additional fields (phone, wishlist, isReady, timestamps) are optional and won't affect shuffle algorithm
+// Additional fields (eventId, wishlist, isReady, joinedAt, giverOf, receiverOf) are optional and won't affect shuffle algorithm

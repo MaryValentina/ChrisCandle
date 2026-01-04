@@ -12,7 +12,6 @@ interface ParticipantFormProps {
 interface FormData {
   name: string
   email: string
-  phone: string
   wishlist: string
   isReady: boolean
 }
@@ -37,7 +36,6 @@ export default function ParticipantForm({
     defaultValues: {
       name: initialData?.name || '',
       email: initialData?.email || '',
-      phone: initialData?.phone || '',
       wishlist: '',
       isReady: initialData?.isReady || false,
     },
@@ -55,15 +53,14 @@ export default function ParticipantForm({
   }
 
   const onFormSubmit = (data: FormData) => {
-    const participant: Omit<Participant, 'id'> = {
+    const participant: Omit<Participant, 'id' | 'eventId' | 'joinedAt'> = {
       name: data.name,
       email: data.email || undefined,
-      phone: data.phone || undefined,
       wishlist: wishlistItems.length > 0 ? wishlistItems : undefined,
       isReady: data.isReady,
     }
 
-    onSubmit(participant)
+    onSubmit(participant as Omit<Participant, 'id'>)
     reset()
     setWishlistItems([])
     setWishlistInput('')
@@ -130,20 +127,6 @@ export default function ParticipantForm({
           {errors.email && (
             <p className="mt-1 text-sm text-christmas-red-600">{errors.email.message}</p>
           )}
-        </div>
-
-        {/* Phone Field */}
-        <div>
-          <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-            Phone
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            {...register('phone')}
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-christmas-gold-500 focus:outline-none transition-colors"
-            placeholder="+1-555-0123"
-          />
         </div>
 
         {/* Wishlist Field */}

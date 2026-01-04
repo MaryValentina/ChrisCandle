@@ -60,17 +60,6 @@ export default function ParticipantCard({
               </a>
             </div>
           )}
-          {participant.phone && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="text-christmas-green-500">📱</span>
-              <a
-                href={`tel:${participant.phone}`}
-                className="hover:text-christmas-green-600 transition-colors"
-              >
-                {participant.phone}
-              </a>
-            </div>
-          )}
         </div>
 
         {/* Wishlist Preview */}

@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import QRCodeSVG from 'react-qr-code'
-import { nanoid } from 'nanoid'
+import { v4 as uuidv4 } from 'uuid'
 import { useEventStore } from '../stores/eventStore'
 import { createEvent as createFirebaseEvent } from '../lib/firebase'
 import ParticipantForm from '../components/features/ParticipantForm'
@@ -16,12 +16,12 @@ import type { Participant, EventData } from '../types'
 const eventDetailsSchema = z.object({
   name: z.string().min(3, 'Event name must be at least 3 characters'),
   date: z.string().min(1, 'Date is required'),
-  spendingLimit: z
+  budget: z
     .string()
     .optional()
     .refine(
       (val) => !val || (!isNaN(Number(val)) && Number(val) > 0),
-      'Spending limit must be a positive number'
+      'Budget must be a positive number'
     ),
   description: z.string().optional(),
 })
@@ -56,7 +56,7 @@ export default function CreateEventPage() {
     defaultValues: {
       name: '',
       date: '',
-      spendingLimit: '',
+      budget: '',
       description: '',
     },
   })
@@ -107,30 +107,43 @@ export default function CreateEventPage() {
   }, [participants, exclusions, currentStep, watch])
 
   const onEventDetailsSubmit = (data: EventDetailsFormData) => {
+    // Generate a simple code if not provided (6 alphanumeric characters)
+    const generateCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      let code = ''
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      return code
+    }
+
     // Create or update event in store
     if (!currentEvent) {
       createEvent({
         name: data.name,
+        code: generateCode(),
         date: data.date,
-        spendingLimit: data.spendingLimit ? Number(data.spendingLimit) : undefined,
+        budget: data.budget ? Number(data.budget) : undefined,
         description: data.description,
-        organizerId: nanoid(), // In real app, use actual user ID
+        organizerId: uuidv4(), // In real app, use actual user ID
       })
     } else {
       updateEvent({
         name: data.name,
         date: data.date,
-        spendingLimit: data.spendingLimit ? Number(data.spendingLimit) : undefined,
+        budget: data.budget ? Number(data.budget) : undefined,
         description: data.description,
       })
     }
     setCurrentStep(2)
   }
 
-  const handleAddParticipant = (participantData: Omit<Participant, 'id'>) => {
+  const handleAddParticipant = (participantData: Omit<Participant, 'id' | 'eventId' | 'joinedAt'>) => {
     const newParticipant: Participant = {
       ...participantData,
-      id: nanoid(),
+      id: uuidv4(),
+      eventId: currentEvent?.id || '', // Will be updated when event is created
+      joinedAt: new Date().toISOString(),
     }
     setParticipants([...participants, newParticipant])
     
@@ -184,23 +197,33 @@ export default function CreateEventPage() {
 
     try {
       // Prepare event data for Firebase
-      // Note: createEvent expects EventData without createdAt/updatedAt
+      // Note: createEvent expects EventData without createdAt
       // The participants array should include all participant data (with IDs preserved for now)
-      const eventData: Omit<EventData, 'createdAt' | 'updatedAt'> = {
+      // We'll set eventId after event creation
+      const now = new Date().toISOString()
+      const generateCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        let code = ''
+        for (let i = 0; i < 6; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        return code
+      }
+      const eventData: Omit<EventData, 'createdAt'> = {
         name: currentEvent.name,
+        code: currentEvent.code || generateCode(),
         date: currentEvent.date,
-        spendingLimit: currentEvent.spendingLimit,
+        budget: currentEvent.budget,
         description: currentEvent.description,
         organizerId: currentEvent.organizerId,
         participants: participants.map(p => ({
           id: p.id,
+          eventId: '', // Will be set after event creation
           name: p.name,
           email: p.email,
-          phone: p.phone,
           wishlist: p.wishlist,
           isReady: p.isReady ?? false,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
+          joinedAt: p.joinedAt || now,
         })),
         exclusions: exclusions.length > 0 ? exclusions : undefined,
         status: 'active' as const,
@@ -239,10 +262,7 @@ export default function CreateEventPage() {
       // Move to review step
       setCurrentStep(3)
 
-      // Auto-redirect to event page after 3 seconds
-      setTimeout(() => {
-        navigate(`/event`)
-      }, 3000)
+      // No auto-redirect - let user copy link/QR code and navigate manually
     } catch (error) {
       console.error('Error saving event to Firebase:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save event. Please try again.')
@@ -354,27 +374,27 @@ export default function CreateEventPage() {
 
               <div>
                 <label
-                  htmlFor="spendingLimit"
+                  htmlFor="budget"
                   className="block text-sm font-semibold text-gray-700 mb-2"
                 >
-                  Spending Limit (optional)
+                  Budget (optional)
                 </label>
                 <input
-                  id="spendingLimit"
+                  id="budget"
                   type="number"
                   min="0"
                   step="0.01"
-                  {...register('spendingLimit')}
+                  {...register('budget')}
                   className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
-                    errors.spendingLimit
+                    errors.budget
                       ? 'border-christmas-red-500'
                       : 'border-gray-300 focus:border-christmas-gold-500'
                   }`}
                   placeholder="e.g., 25"
                 />
-                {errors.spendingLimit && (
+                {errors.budget && (
                   <p className="mt-1 text-sm text-christmas-red-600">
-                    {errors.spendingLimit.message}
+                    {errors.budget.message}
                   </p>
                 )}
               </div>
@@ -581,7 +601,7 @@ export default function CreateEventPage() {
                   <div className="flex-1">
                     <h4 className="font-bold text-christmas-green-700 mb-1">Event Saved Successfully!</h4>
                     <p className="text-sm text-christmas-green-600">
-                      Your event has been saved to Firebase. Link copied to clipboard! Redirecting to event page...
+                      Your event has been saved to Firebase. Link copied to clipboard! Copy the link or scan the QR code below to share with participants.
                     </p>
                   </div>
                 </div>
@@ -615,9 +635,9 @@ export default function CreateEventPage() {
                     <span className="font-semibold">Date:</span>{' '}
                     {currentEvent?.date && format(new Date(currentEvent.date), 'MMMM d, yyyy')}
                   </div>
-                  {currentEvent?.spendingLimit && (
+                  {currentEvent?.budget && (
                     <div>
-                      <span className="font-semibold">Budget:</span> ${currentEvent.spendingLimit}
+                      <span className="font-semibold">Budget:</span> ${currentEvent.budget}
                     </div>
                   )}
                   <div>
@@ -668,14 +688,20 @@ export default function CreateEventPage() {
               <div className="flex gap-4 pt-4">
                 {firebaseEventId && (
                   <button
-                    onClick={() => navigate(`/event`)}
+                    onClick={() => {
+                      console.log('🔄 CreateEventPage: Navigating to event:', firebaseEventId)
+                      navigate(`/event/${firebaseEventId}`)
+                    }}
                     className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
                   >
                     Go to Event →
                   </button>
                 )}
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    console.log('🔄 CreateEventPage: Navigating to home')
+                    navigate('/')
+                  }}
                   className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
                 >
                   Back to Home

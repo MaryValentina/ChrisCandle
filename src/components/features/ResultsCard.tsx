@@ -85,7 +85,7 @@ export default function ResultsCard({
           </div>
 
           {/* Contact Information */}
-          {(receiver.email || receiver.phone) && (
+          {receiver.email && (
             <div className="mb-6 p-4 bg-white rounded-xl shadow-md">
               <div className="text-sm text-gray-600 mb-2 font-semibold">Contact Info:</div>
               <div className="space-y-2">
@@ -97,17 +97,6 @@ export default function ResultsCard({
                       className="hover:underline"
                     >
                       {receiver.email}
-                    </a>
-                  </div>
-                )}
-                {receiver.phone && (
-                  <div className="flex items-center justify-center gap-2 text-christmas-green-600">
-                    <span>📱</span>
-                    <a
-                      href={`tel:${receiver.phone}`}
-                      className="hover:underline"
-                    >
-                      {receiver.phone}
                     </a>
                   </div>
                 )}
