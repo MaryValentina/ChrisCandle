@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
-import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments } from '../lib/firebase'
+import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent } from '../lib/firebase'
 import { sendWelcomeEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
+import { checkAndExpireEvent, getEventStatusMessage, recreateEventForNextYear } from '../lib/eventExpiry'
 import ParticipantCard from '../components/features/ParticipantCard'
 import JoinEventModal from '../components/JoinEventModal'
 import ResultsCard from '../components/features/ResultsCard'
+import { useAuth } from '../contexts/AuthContext'
 import type { Participant, Event, Assignment } from '../types'
 
 export default function EventPage() {
@@ -27,6 +29,9 @@ export default function EventPage() {
   const [showMessageModal, setShowMessageModal] = useState(false)
   const [messageText, setMessageText] = useState('')
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [isRecreating, setIsRecreating] = useState(false)
+  const [showRecreateModal, setShowRecreateModal] = useState(false)
+  const { organizerId } = useAuth()
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
   // Check if current user is already a participant (by email in localStorage)
@@ -75,8 +80,29 @@ export default function EventPage() {
           return
         }
 
-        setEvent(fetchedEvent)
-        updateEventInStore(fetchedEvent)
+        // Check and expire event if needed (if date passed > 7 days)
+        try {
+          const wasExpired = await checkAndExpireEvent(fetchedEvent)
+          if (wasExpired) {
+            // Refetch to get updated status
+            const updatedEvent = await getEventByCode(code)
+            if (updatedEvent) {
+              setEvent(updatedEvent)
+              updateEventInStore(updatedEvent)
+            } else {
+              setEvent(fetchedEvent)
+              updateEventInStore(fetchedEvent)
+            }
+          } else {
+            setEvent(fetchedEvent)
+            updateEventInStore(fetchedEvent)
+          }
+        } catch (expiryError) {
+          // Don't fail the page load if expiry check fails
+          console.warn('Error checking event expiry:', expiryError)
+          setEvent(fetchedEvent)
+          updateEventInStore(fetchedEvent)
+        }
 
         // Fetch assignments if event is drawn
         if (fetchedEvent.status === 'drawn') {
@@ -270,9 +296,31 @@ export default function EventPage() {
     ? event.participants.find((p) => p.id === currentParticipantAssignment.receiverId)
     : null
 
-  // Note: We can't use useAuth here because participants don't need accounts
-  // For organizer check, we'll rely on the admin route protection
-  const isOrganizer = false // This will be checked server-side or via admin route
+  // Check if current user is the organizer
+  const isOrganizer = organizerId && event ? event.organizerId === organizerId : false
+
+  // Get event status message
+  const statusMessage = event ? getEventStatusMessage(event) : null
+
+  const handleRecreateEvent = async () => {
+    if (!event || !organizerId) return
+
+    setIsRecreating(true)
+    try {
+      const newEventId = await recreateEventForNextYear(event, async (eventData) => {
+        return await createFirebaseEvent(eventData)
+      })
+
+      // Navigate to dashboard where they can see the new event
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('Error recreating event:', err)
+      setError('Failed to recreate event. Please try again.')
+    } finally {
+      setIsRecreating(false)
+      setShowRecreateModal(false)
+    }
+  }
 
   const handleSendMessage = async () => {
     if (!currentParticipantMatch || !messageText.trim()) return
@@ -338,6 +386,60 @@ export default function EventPage() {
           </div>
         </div>
 
+        {/* Event Expired/Completed Banner */}
+        {(event.status === 'expired' || event.status === 'completed') && (
+          <div className={`mb-6 p-6 rounded-2xl border-2 ${
+            event.status === 'expired'
+              ? 'bg-red-50 border-red-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="text-center">
+              <div className="text-5xl mb-4">
+                {event.status === 'expired' ? '⏰' : '✅'}
+              </div>
+              <h2 className={`text-2xl font-bold mb-2 ${
+                event.status === 'expired'
+                  ? 'text-red-700'
+                  : 'text-blue-700'
+              }`}>
+                Event Completed
+              </h2>
+              <p className={`mb-4 ${
+                event.status === 'expired'
+                  ? 'text-red-600'
+                  : 'text-blue-600'
+              }`}>
+                {statusMessage?.message || 'This event has ended.'}
+              </p>
+              {statusMessage?.canRecreate && isOrganizer && (
+                <button
+                  onClick={() => setShowRecreateModal(true)}
+                  className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+                >
+                  🎄 Recreate for Next Year
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Event Status Message (for active events) */}
+        {event.status !== 'expired' && event.status !== 'completed' && statusMessage && (
+          <div className={`mb-6 p-4 rounded-xl border-2 ${
+            statusMessage.type === 'warning'
+              ? 'bg-yellow-50 border-yellow-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <p className={`text-center ${
+              statusMessage.type === 'warning'
+                ? 'text-yellow-700'
+                : 'text-blue-600'
+            }`}>
+              {statusMessage.message}
+            </p>
+          </div>
+        )}
+
         {/* Event Details */}
         <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
           <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Event Details</h2>
@@ -381,8 +483,20 @@ export default function EventPage() {
           </div>
         )}
 
-        {/* Join/Status Section */}
-        {!currentParticipant ? (
+        {/* Join/Status Section - Disabled if event is expired */}
+        {event.status === 'expired' || event.status === 'completed' ? (
+          <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
+            <div className="text-center">
+              <div className="text-5xl mb-4">🔒</div>
+              <h2 className="text-2xl font-bold text-gray-600 mb-4">
+                Event Closed
+              </h2>
+              <p className="text-gray-600 mb-6">
+                This event is no longer accepting new participants.
+              </p>
+            </div>
+          </div>
+        ) : !currentParticipant ? (
           <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">
@@ -513,6 +627,45 @@ export default function EventPage() {
         isSubmitting={isJoining}
         error={error}
       />
+
+      {/* Recreate Event Modal */}
+      {showRecreateModal && event && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
+            <h3 className="text-2xl font-bold text-christmas-red-600 mb-4">
+              🎄 Recreate Event for Next Year
+            </h3>
+            <p className="text-gray-600 mb-6">
+              This will create a new event with the same details, but the date will be set to next year. 
+              All participants will need to join again.
+            </p>
+            <div className="bg-gray-50 p-4 rounded-xl mb-6">
+              <p className="text-sm text-gray-700">
+                <strong>Event Name:</strong> {event.name} {new Date(event.date).getFullYear() + 1}
+              </p>
+              <p className="text-sm text-gray-700 mt-2">
+                <strong>New Date:</strong> {format(new Date(new Date(event.date).setFullYear(new Date(event.date).getFullYear() + 1)), 'MMMM d, yyyy')}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRecreateModal(false)}
+                disabled={isRecreating}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRecreateEvent}
+                disabled={isRecreating}
+                className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-semibold hover:bg-christmas-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isRecreating ? 'Creating...' : 'Recreate Event'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Anonymous Message Modal */}
       {showMessageModal && currentParticipantMatch && (

@@ -6,6 +6,7 @@ import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
 import { sendDrawEmail } from '../lib/email'
+import { checkAndExpireEvent, getEventStatusMessage } from '../lib/eventExpiry'
 import QRCodeSVG from 'react-qr-code'
 import type { Event } from '../types'
 
@@ -51,7 +52,25 @@ export default function AdminPage() {
           return
         }
 
-        setEvent(fetchedEvent)
+        // Check and expire event if needed (if date passed > 7 days)
+        try {
+          const wasExpired = await checkAndExpireEvent(fetchedEvent)
+          if (wasExpired) {
+            // Refetch to get updated status
+            const updatedEvent = await getEventByCode(code)
+            if (updatedEvent) {
+              setEvent(updatedEvent)
+            } else {
+              setEvent(fetchedEvent)
+            }
+          } else {
+            setEvent(fetchedEvent)
+          }
+        } catch (expiryError) {
+          // Don't fail the page load if expiry check fails
+          console.warn('Error checking event expiry:', expiryError)
+          setEvent(fetchedEvent)
+        }
 
         // Set up real-time subscription
         unsubscribeRef.current = subscribeToEvent(fetchedEvent.id, (updatedEvent, err) => {
