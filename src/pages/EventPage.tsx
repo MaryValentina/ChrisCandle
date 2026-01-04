@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
 import { getEventByCode, subscribeToEvent, addParticipant, updateEvent } from '../lib/firebase'
+import { sendParticipantConfirmationEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
 import ParticipantCard from '../components/features/ParticipantCard'
-import ParticipantForm from '../components/features/ParticipantForm'
+import JoinEventModal from '../components/JoinEventModal'
 import type { Participant, Event } from '../types'
 
 export default function EventPage() {
@@ -16,20 +17,32 @@ export default function EventPage() {
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showJoinForm, setShowJoinForm] = useState(false)
+  const [showJoinModal, setShowJoinModal] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
+  const [joinSuccess, setJoinSuccess] = useState(false)
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
-  // Check if current user is already a participant
+  // Check if current user is already a participant (by email in localStorage)
   useEffect(() => {
     if (event) {
-      // TODO: Get participant ID from localStorage or auth
+      // Check by participant ID first (for backward compatibility)
       const storedParticipantId = localStorage.getItem(`participant_${event.id}`)
       if (storedParticipantId) {
         const isParticipant = event.participants.some((p) => p.id === storedParticipantId)
         if (isParticipant) {
           setCurrentParticipantId(storedParticipantId)
+          return
+        }
+      }
+
+      // Check by email (new method)
+      const storedEmail = localStorage.getItem(`participant_email_${event.code}`)
+      if (storedEmail) {
+        const participant = event.participants.find((p) => p.email === storedEmail)
+        if (participant) {
+          setCurrentParticipantId(participant.id)
+          localStorage.setItem(`participant_${event.id}`, participant.id)
         }
       }
     }
@@ -89,34 +102,62 @@ export default function EventPage() {
     }
   }, [code, updateEventInStore])
 
-  const handleJoinEvent = async (participantData: Omit<Participant, 'id' | 'eventId' | 'joinedAt'>) => {
+  const handleJoinEvent = async (formData: { name: string; email: string; wishlist?: string[] }) => {
     if (!event) return
 
     setIsJoining(true)
+    setError(null)
+    setJoinSuccess(false)
+
     try {
       const newParticipant: Omit<Participant, 'id' | 'eventId' | 'joinedAt'> = {
-        name: participantData.name,
-        email: participantData.email,
-        wishlist: participantData.wishlist,
-        isReady: participantData.isReady ?? false,
+        name: formData.name,
+        email: formData.email,
+        wishlist: formData.wishlist,
+        isReady: false,
       }
 
+      // Save participant to Firestore
       await addParticipant(event.id, newParticipant)
 
       // Get updated event to find the new participant ID
       const updatedEvent = await getEventByCode(code!)
       if (updatedEvent) {
         const newParticipantObj = updatedEvent.participants.find(
-          (p) => p.name === participantData.name && p.email === participantData.email
+          (p) => p.name === formData.name && p.email === formData.email
         )
         if (newParticipantObj) {
           setCurrentParticipantId(newParticipantObj.id)
+          
+          // Store participant info in localStorage for return visits
           localStorage.setItem(`participant_${event.id}`, newParticipantObj.id)
+          localStorage.setItem(`participant_email_${event.code}`, formData.email)
+          localStorage.setItem(`participant_name_${event.code}`, formData.name)
         }
         setEvent(updatedEvent)
       }
 
-      setShowJoinForm(false)
+      // Send confirmation email (placeholder)
+      try {
+        await sendParticipantConfirmationEmail(
+          formData.email,
+          formData.name,
+          event.name,
+          event.code
+        )
+      } catch (emailError) {
+        // Don't fail the join if email fails
+        console.warn('Failed to send confirmation email:', emailError)
+      }
+
+      // Show success message
+      setJoinSuccess(true)
+      setShowJoinModal(false)
+
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setJoinSuccess(false)
+      }, 5000)
     } catch (err) {
       console.error('Error joining event:', err)
       setError(err instanceof Error ? err.message : 'Failed to join event')
@@ -246,36 +287,38 @@ export default function EventPage() {
           )}
         </div>
 
+        {/* Success Message */}
+        {joinSuccess && (
+          <div className="mb-6 p-4 bg-christmas-green-50 border-2 border-christmas-green-200 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">✅</div>
+              <div className="flex-1">
+                <h3 className="font-bold text-christmas-green-700 mb-1">You're In!</h3>
+                <p className="text-sm text-christmas-green-600">
+                  Check your email for confirmation. You've successfully joined this Secret Santa event.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Join/Status Section */}
         {!currentParticipant ? (
           <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-            {!showJoinForm ? (
-              <div className="text-center">
-                <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">
-                  Join This Event
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Add your name and wishlist to participate in this Secret Santa
-                </p>
-                <button
-                  onClick={() => setShowJoinForm(true)}
-                  className="px-8 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
-                >
-                  Join Event
-                </button>
-              </div>
-            ) : (
-              <div>
-                <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">
-                  Join This Event
-                </h2>
-                <ParticipantForm
-                  onSubmit={handleJoinEvent}
-                  onCancel={() => setShowJoinForm(false)}
-                  submitLabel={isJoining ? 'Joining...' : 'Join Event'}
-                />
-              </div>
-            )}
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">
+                Join This Event
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Add your name, email, and wishlist to participate in this Secret Santa
+              </p>
+              <button
+                onClick={() => setShowJoinModal(true)}
+                className="px-8 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+              >
+                Join Event
+              </button>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
@@ -332,6 +375,18 @@ export default function EventPage() {
           )}
         </div>
       </div>
+
+      {/* Join Event Modal */}
+      <JoinEventModal
+        isOpen={showJoinModal}
+        onClose={() => {
+          setShowJoinModal(false)
+          setError(null)
+        }}
+        onSubmit={handleJoinEvent}
+        isSubmitting={isJoining}
+        error={error}
+      />
     </div>
   )
 }
