@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
 import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments } from '../lib/firebase'
-import { sendParticipantConfirmationEmail } from '../lib/email'
+import { sendWelcomeEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
 import ParticipantCard from '../components/features/ParticipantCard'
 import JoinEventModal from '../components/JoinEventModal'
@@ -169,17 +169,20 @@ export default function EventPage() {
         setEvent(updatedEvent)
       }
 
-      // Send confirmation email (placeholder)
+      // Send welcome email
       try {
-        await sendParticipantConfirmationEmail(
-          formData.email,
-          formData.name,
-          event.name,
-          event.code
-        )
+        const eventLink = `${window.location.origin}/event/${event.code}`
+        await sendWelcomeEmail({
+          participantEmail: formData.email,
+          participantName: formData.name,
+          eventName: event.name,
+          eventCode: event.code,
+          eventDate: event.date,
+          eventLink,
+        })
       } catch (emailError) {
         // Don't fail the join if email fails
-        console.warn('Failed to send confirmation email:', emailError)
+        console.warn('Failed to send welcome email:', emailError)
       }
 
       // Show success message

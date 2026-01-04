@@ -5,6 +5,7 @@ import { getEventByCode, subscribeToEvent, updateEvent, saveAssignments } from '
 import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
+import { sendDrawEmail } from '../lib/email'
 import QRCodeSVG from 'react-qr-code'
 import type { Event } from '../types'
 
@@ -101,6 +102,33 @@ export default function AdminPage() {
       // Save to Firebase
       await saveAssignments(event.id, assignments)
       await updateEvent(event.id, { status: 'drawn' })
+
+      // Send draw completion emails to all participants
+      const eventLink = `${window.location.origin}/event/${event.code}`
+      const emailPromises = assignments.map(async (assignment) => {
+        const giver = event.participants.find((p) => p.id === assignment.giverId)
+        const receiver = event.participants.find((p) => p.id === assignment.receiverId)
+
+        if (giver && receiver && giver.email) {
+          try {
+            await sendDrawEmail({
+              participantEmail: giver.email,
+              participantName: giver.name,
+              receiverName: receiver.name,
+              receiverWishlist: receiver.wishlist,
+              eventName: event.name,
+              eventDate: event.date,
+              eventLink,
+            })
+          } catch (emailError) {
+            // Don't fail the draw if email fails
+            console.warn(`Failed to send draw email to ${giver.email}:`, emailError)
+          }
+        }
+      })
+
+      // Wait for all emails to be sent (or fail silently)
+      await Promise.allSettled(emailPromises)
 
       // Update local store
       await runDrawInStore()
