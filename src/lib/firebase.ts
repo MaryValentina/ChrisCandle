@@ -14,10 +14,14 @@ import {
   getFirestore, 
   doc, 
   getDoc, 
+  getDocs,
   updateDoc, 
   collection, 
   addDoc,
   writeBatch,
+  query,
+  where,
+  limit,
   Timestamp,
   serverTimestamp,
   onSnapshot,
@@ -26,7 +30,7 @@ import {
 import type { Firestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import type { Auth } from 'firebase/auth'
-import type { Event, Participant, EventData, ParticipantData, AssignmentData, FirestoreDate } from '../types'
+import type { Event, Participant, Assignment, EventData, ParticipantData, AssignmentData, FirestoreDate } from '../types'
 
 /**
  * Firebase configuration interface
@@ -282,7 +286,7 @@ function fromFirestoreTimestamp(timestamp: any): string {
 /**
  * Convert Firestore document data to Event type
  */
-function convertFirestoreEvent(data: any, id: string): Event {
+export function convertFirestoreEvent(data: any, id: string): Event {
   try {
     // Ensure required fields exist
     if (!data.name) {
@@ -550,6 +554,59 @@ export async function getEvent(eventId: string): Promise<Event | null> {
 }
 
 /**
+ * Fetch an event by code from Firestore
+ * 
+ * @param code - The event code (e.g., "ABC123")
+ * @returns Promise that resolves to the Event object, or null if not found
+ * @throws Error if Firebase is not configured or fetch fails
+ */
+export async function getEventByCode(code: string): Promise<Event | null> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    console.log('🔍 Fetching event by code from Firebase:', code)
+    const eventsRef = collection(db, 'events')
+    const q = query(eventsRef, where('code', '==', code.toUpperCase().trim()), limit(1))
+    const querySnapshot = await getDocs(q)
+
+    if (querySnapshot.empty) {
+      console.log(`⚠️ Event with code ${code} not found in Firestore`)
+      return null
+    }
+
+    const eventDoc = querySnapshot.docs[0]
+    const eventData = eventDoc.data()
+    
+    console.log('📦 Raw Firestore data:', {
+      id: eventDoc.id,
+      code: eventData?.code,
+      name: eventData?.name,
+      participantsCount: eventData?.participants?.length || 0,
+      status: eventData?.status,
+    })
+    
+    const event = convertFirestoreEvent(eventData, eventDoc.id)
+    
+    console.log('✅ Event converted successfully:', {
+      id: event.id,
+      code: event.code,
+      name: event.name,
+      participantsCount: event.participants.length,
+      status: event.status,
+    })
+    
+    return event
+  } catch (error) {
+    console.error('❌ Error fetching event by code:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to fetch event by code: ${errorMessage}`)
+  }
+}
+
+/**
  * Update an event in Firestore
  * 
  * @param eventId - The event document ID
@@ -664,6 +721,43 @@ export async function addParticipant(eventId: string, participant: ParticipantDa
     console.error('❌ Error adding participant:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     throw new Error(`Failed to add participant: ${errorMessage}`)
+  }
+}
+
+/**
+ * Fetch assignments for an event from Firestore
+ * 
+ * @param eventId - The event document ID
+ * @returns Promise that resolves to an array of Assignment objects
+ * @throws Error if Firebase is not configured or fetch fails
+ */
+export async function getAssignments(eventId: string): Promise<Assignment[]> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    const assignmentsRef = collection(db, 'events', eventId, 'assignments')
+    const querySnapshot = await getDocs(assignmentsRef)
+
+    const assignments: Assignment[] = []
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      assignments.push({
+        eventId: data.eventId || eventId,
+        giverId: data.giverId,
+        receiverId: data.receiverId,
+        createdAt: data.createdAt ? fromFirestoreTimestamp(data.createdAt) : new Date().toISOString(),
+        revealedAt: data.revealedAt ? fromFirestoreTimestamp(data.revealedAt) : null,
+      })
+    })
+
+    return assignments
+  } catch (error) {
+    console.error('❌ Error fetching assignments:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to fetch assignments: ${errorMessage}`)
   }
 }
 

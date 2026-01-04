@@ -233,16 +233,20 @@ export default function CreateEventPage() {
       const eventId = await createFirebaseEvent(eventData)
       setFirebaseEventId(eventId)
 
+      // Get the event code (from eventData or fetch from Firebase)
+      const eventCode = eventData.code || currentEvent.code || ''
+
       // Update local store with Firebase event ID
       updateEvent({
         id: eventId,
+        code: eventCode,
         participants,
         exclusions: exclusions.length > 0 ? exclusions : undefined,
         status: 'active',
       })
 
-      // Generate shareable link using Firebase event ID
-      const link = `${window.location.origin}/event/${eventId}`
+      // Generate shareable link using event code
+      const link = `${window.location.origin}/event/${eventCode}`
       setShareableLink(link)
 
       // Copy link to clipboard automatically
@@ -620,11 +624,11 @@ export default function CreateEventPage() {
               <div className="bg-gradient-to-r from-christmas-red-50 to-christmas-green-50 rounded-xl p-6 mb-6">
                 <h3 className="text-xl font-bold text-christmas-red-600 mb-4">Event Summary</h3>
                 <div className="space-y-2 text-gray-700">
-                  {firebaseEventId && (
+                  {currentEvent?.code && (
                     <div>
-                      <span className="font-semibold">Event ID:</span>{' '}
-                      <span className="font-mono text-sm bg-white px-2 py-1 rounded">
-                        {firebaseEventId}
+                      <span className="font-semibold">Event Code:</span>{' '}
+                      <span className="font-mono text-sm bg-white px-2 py-1 rounded font-bold text-christmas-red-600">
+                        {currentEvent.code}
                       </span>
                     </div>
                   )}
@@ -686,11 +690,11 @@ export default function CreateEventPage() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                {firebaseEventId && (
+                {currentEvent?.code && (
                   <button
                     onClick={() => {
-                      console.log('🔄 CreateEventPage: Navigating to event:', firebaseEventId)
-                      navigate(`/event/${firebaseEventId}`)
+                      console.log('🔄 CreateEventPage: Navigating to event:', currentEvent.code)
+                      navigate(`/event/${currentEvent.code}`)
                     }}
                     className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
                   >

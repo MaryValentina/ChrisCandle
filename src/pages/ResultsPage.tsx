@@ -1,25 +1,81 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useEventStore } from '../stores/eventStore'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { getEventByCode, getAssignments } from '../lib/firebase'
 import ResultsCard from '../components/features/ResultsCard'
+import type { Event, Assignment } from '../types'
 
 export default function ResultsPage() {
   const navigate = useNavigate()
-  const { currentEvent, assignments, isLoading, error } = useEventStore()
+  const { code } = useParams<{ code: string }>()
+  const [event, setEvent] = useState<Event | null>(null)
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Redirect if no event or no assignments
-  if (!currentEvent) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!code) {
+        setError('No event code provided')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Fetch event by code
+        const fetchedEvent = await getEventByCode(code)
+        if (!fetchedEvent) {
+          setError('Event not found')
+          setIsLoading(false)
+          return
+        }
+
+        setEvent(fetchedEvent)
+
+        // Fetch assignments
+        const fetchedAssignments = await getAssignments(fetchedEvent.id)
+        setAssignments(fetchedAssignments)
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching results:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load results')
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [code])
+
+  // Get participant by ID
+  const getParticipant = (id: string) => {
+    return event?.participants.find((p) => p.id === id)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center">
+          <div className="text-4xl mb-4 animate-bounce">🎄</div>
+          <p className="text-xl font-semibold text-christmas-red-600">Loading assignments...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !event) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">No Event Found</h2>
-          <p className="text-gray-600 mb-6">
-            You don't have an active event. Create one to get started!
-          </p>
+          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Error</h2>
+          <p className="text-gray-600 mb-6">{error || 'Event not found'}</p>
           <button
-            onClick={() => navigate('/create')}
+            onClick={() => navigate('/')}
             className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
           >
-            Create Event
+            Go Home
           </button>
         </div>
       </div>
@@ -34,48 +90,13 @@ export default function ResultsPage() {
             No Assignments Yet
           </h2>
           <p className="text-gray-600 mb-6">
-            Assignments haven't been generated yet. Go to the event page to run the draw!
+            Assignments haven't been generated yet. The organizer needs to run the draw first.
           </p>
           <button
-            onClick={() => navigate('/event')}
+            onClick={() => navigate(`/event/${code}`)}
             className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
           >
             Go to Event
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Get participant by ID
-  const getParticipant = (id: string) => {
-    return currentEvent.participants.find((p) => p.id === id)
-  }
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center">
-          <div className="text-4xl mb-4 animate-bounce">🎄</div>
-          <p className="text-xl font-semibold text-christmas-red-600">Loading assignments...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => navigate('/event')}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
-          >
-            Go Back
           </button>
         </div>
       </div>
@@ -91,7 +112,7 @@ export default function ResultsPage() {
           </h1>
           <p className="text-gray-600 mb-8">
             The moment of truth! Here are your Secret Santa pairings for{' '}
-            <span className="font-semibold">{currentEvent.name}</span>.
+            <span className="font-semibold">{event.name}</span>.
           </p>
 
           {/* All Assignments View */}
@@ -163,7 +184,7 @@ export default function ResultsPage() {
               Export Results
             </button>
             <Link
-              to="/event"
+              to={`/event/${code}`}
               className="flex-1 px-6 py-3 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas text-center"
             >
               Back to Event

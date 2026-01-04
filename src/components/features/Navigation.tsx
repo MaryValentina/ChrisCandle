@@ -38,14 +38,14 @@ export default function Navigation() {
               Create Event
             </Link>
             <Link
-              to="/event"
+              to="/dashboard"
               className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                isActive('/event')
+                isActive('/dashboard')
                   ? 'bg-christmas-gold-500 text-white'
                   : 'text-gray-700 hover:bg-christmas-gold-50'
               }`}
             >
-              My Events
+              Dashboard
             </Link>
           </div>
 
@@ -94,14 +94,14 @@ export default function Navigation() {
             Create Event
           </Link>
           <Link
-            to="/event"
+            to="/dashboard"
             className={`block px-4 py-2 rounded-lg font-semibold ${
-              isActive('/event')
+              isActive('/dashboard')
                 ? 'bg-christmas-gold-500 text-white'
                 : 'text-gray-700 hover:bg-christmas-gold-50'
             }`}
           >
-            My Events
+            Dashboard
           </Link>
         </div>
       </div>

@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navigation from './components/features/Navigation'
 import LandingPage from './pages/LandingPage'
+import JoinPage from './pages/JoinPage'
 import CreateEventPage from './pages/CreateEventPage'
 import EventPage from './pages/EventPage'
-import EventListPage from './pages/EventListPage'
+import AdminPage from './pages/AdminPage'
+import OrganizerDashboard from './pages/OrganizerDashboard'
 import ResultsPage from './pages/ResultsPage'
 import TestAlgorithmPage from './pages/TestAlgorithmPage'
 
@@ -11,7 +13,31 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/join" element={<JoinPage />} />
+        
+        {/* Event Routes */}
+        <Route
+          path="/event/:code"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <EventPage />
+            </div>
+          }
+        />
+        <Route
+          path="/event/:code/admin"
+          element={
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <AdminPage />
+            </div>
+          }
+        />
+        
+        {/* Organizer Routes */}
         <Route
           path="/create"
           element={
@@ -22,25 +48,18 @@ function App() {
           }
         />
         <Route
-          path="/event/:eventId"
+          path="/dashboard"
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />
-              <EventPage />
+              <OrganizerDashboard />
             </div>
           }
         />
+        
+        {/* Results */}
         <Route
-          path="/event"
-          element={
-            <div className="min-h-screen bg-gray-50">
-              <Navigation />
-              <EventListPage />
-            </div>
-          }
-        />
-        <Route
-          path="/results/:eventId"
+          path="/results/:code"
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />
@@ -48,15 +67,8 @@ function App() {
             </div>
           }
         />
-        <Route
-          path="/results"
-          element={
-            <div className="min-h-screen bg-gray-50">
-              <Navigation />
-              <ResultsPage />
-            </div>
-          }
-        />
+        
+        {/* Test/Dev Routes */}
         <Route
           path="/test"
           element={
