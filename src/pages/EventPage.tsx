@@ -183,7 +183,9 @@ export default function EventPage() {
   const currentParticipant = currentParticipantId
     ? event.participants.find((p) => p.id === currentParticipantId)
     : null
-  const isOrganizer = localStorage.getItem('organizerId') === event.organizerId
+  // Note: We can't use useAuth here because participants don't need accounts
+  // For organizer check, we'll rely on the admin route protection
+  const isOrganizer = false // This will be checked server-side or via admin route
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">

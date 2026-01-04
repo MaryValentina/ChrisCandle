@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import QRCodeSVG from 'react-qr-code'
 import { v4 as uuidv4 } from 'uuid'
 import { useEventStore } from '../stores/eventStore'
+import { useAuth } from '../contexts/AuthContext'
 import { createEvent as createFirebaseEvent } from '../lib/firebase'
 import ParticipantForm from '../components/features/ParticipantForm'
 import ParticipantCard from '../components/features/ParticipantCard'
@@ -32,6 +33,7 @@ const DRAFT_STORAGE_KEY = 'chriscandle-create-event-draft'
 
 export default function CreateEventPage() {
   const navigate = useNavigate()
+  const { organizerId } = useAuth()
   const { createEvent, updateEvent, addParticipant, removeParticipant, currentEvent } =
     useEventStore()
 
@@ -119,13 +121,17 @@ export default function CreateEventPage() {
 
     // Create or update event in store
     if (!currentEvent) {
+      if (!organizerId) {
+        console.error('No organizer ID available. User must be logged in.')
+        return
+      }
       createEvent({
         name: data.name,
         code: generateCode(),
         date: data.date,
         budget: data.budget ? Number(data.budget) : undefined,
         description: data.description,
-        organizerId: uuidv4(), // In real app, use actual user ID
+        organizerId: organizerId,
       })
     } else {
       updateEvent({

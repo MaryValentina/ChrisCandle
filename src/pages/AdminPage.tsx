@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { getEventByCode, subscribeToEvent, updateEvent, saveAssignments } from '../lib/firebase'
 import { useEventStore } from '../stores/eventStore'
+import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
 import type { Event } from '../types'
 
@@ -10,22 +11,16 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const { code } = useParams<{ code: string }>()
   const { runDraw: runDrawInStore } = useEventStore()
+  const { organizerId } = useAuth()
 
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRunningDraw, setIsRunningDraw] = useState(false)
-  const [isOrganizer, setIsOrganizer] = useState(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
   // Check if user is organizer
-  useEffect(() => {
-    // TODO: Get organizer ID from auth context
-    const storedOrganizerId = localStorage.getItem('organizerId')
-    if (storedOrganizerId && event) {
-      setIsOrganizer(event.organizerId === storedOrganizerId)
-    }
-  }, [event])
+  const isOrganizer = organizerId && event ? event.organizerId === organizerId : false
 
   // Fetch event and set up real-time subscription
   useEffect(() => {
@@ -154,9 +149,8 @@ export default function AdminPage() {
     )
   }
 
-  // Check if user is organizer
-  const storedOrganizerId = localStorage.getItem('organizerId')
-  if (!storedOrganizerId || event.organizerId !== storedOrganizerId) {
+  // Check if user is organizer (already checked in ProtectedRoute, but double-check here)
+  if (!organizerId || !event || event.organizerId !== organizerId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">

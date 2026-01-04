@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navigation from './components/features/Navigation'
+import ProtectedRoute from './components/ProtectedRoute'
 import LandingPage from './pages/LandingPage'
 import JoinPage from './pages/JoinPage'
+import LoginPage from './pages/LoginPage'
+import SignUpPage from './pages/SignUpPage'
 import CreateEventPage from './pages/CreateEventPage'
 import EventPage from './pages/EventPage'
 import AdminPage from './pages/AdminPage'
@@ -16,8 +19,10 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/join" element={<JoinPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
         
-        {/* Event Routes */}
+        {/* Event Routes (Public) */}
         <Route
           path="/event/:code"
           element={
@@ -27,23 +32,27 @@ function App() {
             </div>
           }
         />
+        
+        {/* Protected Organizer Routes */}
         <Route
           path="/event/:code/admin"
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />
-              <AdminPage />
+              <ProtectedRoute>
+                <AdminPage />
+              </ProtectedRoute>
             </div>
           }
         />
-        
-        {/* Organizer Routes */}
         <Route
           path="/create"
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />
-              <CreateEventPage />
+              <ProtectedRoute>
+                <CreateEventPage />
+              </ProtectedRoute>
             </div>
           }
         />
@@ -52,7 +61,9 @@ function App() {
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />
-              <OrganizerDashboard />
+              <ProtectedRoute>
+                <OrganizerDashboard />
+              </ProtectedRoute>
             </div>
           }
         />

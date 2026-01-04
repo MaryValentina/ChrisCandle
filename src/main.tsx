@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles/globals.css'
 import App from './App.tsx'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Verify root element exists
 const rootElement = document.getElementById('root')
@@ -17,7 +18,9 @@ try {
   const root = createRoot(rootElement)
   root.render(
     <StrictMode>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </StrictMode>
   )
   console.log('✅ React app rendered successfully!')

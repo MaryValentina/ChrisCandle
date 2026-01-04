@@ -35,7 +35,7 @@ export default function LandingPage() {
             🎁 Join Event
           </Link>
           <Link
-            to="/create"
+            to="/signup"
             className="px-8 py-4 bg-christmas-gold-500 text-white rounded-xl font-bold text-lg hover:bg-christmas-gold-600 transition-all shadow-christmas-lg transform hover:scale-105"
           >
             ✨ Organize Event

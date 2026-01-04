@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import type { Event } from '../types'
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 import { getDb } from '../lib/firebase'
@@ -9,24 +10,19 @@ import { format } from 'date-fns'
 
 export default function OrganizerDashboard() {
   const navigate = useNavigate()
+  const { organizerId } = useAuth()
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [organizerId, setOrganizerId] = useState<string | null>(null)
 
   useEffect(() => {
-    // TODO: Get organizer ID from auth context
-    // For now, using localStorage or prompt
-    const storedOrganizerId = localStorage.getItem('organizerId')
-    if (storedOrganizerId) {
-      setOrganizerId(storedOrganizerId)
-      fetchEvents(storedOrganizerId)
+    if (organizerId) {
+      fetchEvents(organizerId)
     } else {
-      // In real app, redirect to login/signup
       setError('Please sign in to view your events')
       setIsLoading(false)
     }
-  }, [])
+  }, [organizerId])
 
   const fetchEvents = async (orgId: string) => {
     try {
