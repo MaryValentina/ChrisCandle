@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
-import { getEventByCode, subscribeToEvent, addParticipant, updateEvent } from '../lib/firebase'
+import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments } from '../lib/firebase'
 import { sendParticipantConfirmationEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
 import ParticipantCard from '../components/features/ParticipantCard'
 import JoinEventModal from '../components/JoinEventModal'
-import type { Participant, Event } from '../types'
+import ResultsCard from '../components/features/ResultsCard'
+import type { Participant, Event, Assignment } from '../types'
 
 export default function EventPage() {
   const navigate = useNavigate()
@@ -21,6 +22,11 @@ export default function EventPage() {
   const [isJoining, setIsJoining] = useState(false)
   const [joinSuccess, setJoinSuccess] = useState(false)
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null)
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
+  const [messageText, setMessageText] = useState('')
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
   // Check if current user is already a participant (by email in localStorage)
@@ -72,8 +78,21 @@ export default function EventPage() {
         setEvent(fetchedEvent)
         updateEventInStore(fetchedEvent)
 
+        // Fetch assignments if event is drawn
+        if (fetchedEvent.status === 'drawn') {
+          setIsLoadingAssignments(true)
+          try {
+            const fetchedAssignments = await getAssignments(fetchedEvent.id)
+            setAssignments(fetchedAssignments)
+          } catch (err) {
+            console.error('Error fetching assignments:', err)
+          } finally {
+            setIsLoadingAssignments(false)
+          }
+        }
+
         // Set up real-time subscription
-        unsubscribeRef.current = subscribeToEvent(fetchedEvent.id, (updatedEvent, err) => {
+        unsubscribeRef.current = subscribeToEvent(fetchedEvent.id, async (updatedEvent, err) => {
           if (err) {
             console.error('Real-time subscription error:', err)
             return
@@ -81,6 +100,19 @@ export default function EventPage() {
           if (updatedEvent) {
             setEvent(updatedEvent)
             updateEventInStore(updatedEvent)
+
+            // Fetch assignments if status changed to drawn
+            if (updatedEvent.status === 'drawn' && assignments.length === 0) {
+              setIsLoadingAssignments(true)
+              try {
+                const fetchedAssignments = await getAssignments(updatedEvent.id)
+                setAssignments(fetchedAssignments)
+              } catch (err) {
+                console.error('Error fetching assignments:', err)
+              } finally {
+                setIsLoadingAssignments(false)
+              }
+            }
           }
         })
 
@@ -224,9 +256,53 @@ export default function EventPage() {
   const currentParticipant = currentParticipantId
     ? event.participants.find((p) => p.id === currentParticipantId)
     : null
+
+  // Find the current participant's assignment (if event is drawn)
+  const currentParticipantAssignment = currentParticipantId && event.status === 'drawn'
+    ? assignments.find((a) => a.giverId === currentParticipantId)
+    : null
+
+  // Find the receiver (match) for the current participant
+  const currentParticipantMatch = currentParticipantAssignment
+    ? event.participants.find((p) => p.id === currentParticipantAssignment.receiverId)
+    : null
+
   // Note: We can't use useAuth here because participants don't need accounts
   // For organizer check, we'll rely on the admin route protection
   const isOrganizer = false // This will be checked server-side or via admin route
+
+  const handleSendMessage = async () => {
+    if (!currentParticipantMatch || !messageText.trim()) return
+
+    setIsSendingMessage(true)
+    try {
+      // TODO: Implement anonymous message sending
+      // This would typically send an email or notification to the receiver
+      // For now, we'll just log it
+      console.log('Sending anonymous message:', {
+        from: currentParticipant?.name,
+        to: currentParticipantMatch.name,
+        message: messageText,
+      })
+
+      // Placeholder: In a real app, you'd call an API or Firebase function here
+      // await sendAnonymousMessage({
+      //   eventId: event.id,
+      //   fromParticipantId: currentParticipantId,
+      //   toParticipantId: currentParticipantMatch.id,
+      //   message: messageText,
+      // })
+
+      alert('Message sent! (This is a placeholder - message functionality coming soon)')
+      setShowMessageModal(false)
+      setMessageText('')
+    } catch (err) {
+      console.error('Error sending message:', err)
+      setError('Failed to send message. Please try again.')
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">
@@ -330,17 +406,19 @@ export default function EventPage() {
               <p className="text-gray-600 mb-6">
                 You've joined this Secret Santa event
               </p>
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={currentParticipant.isReady}
-                    onChange={handleMarkReady}
-                    className="w-5 h-5 text-christmas-green-500 rounded focus:ring-christmas-green-500"
-                  />
-                  <span className="font-semibold text-gray-700">I'm ready for the draw</span>
-                </label>
-              </div>
+              {event.status !== 'drawn' && (
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentParticipant.isReady}
+                      onChange={handleMarkReady}
+                      className="w-5 h-5 text-christmas-green-500 rounded focus:ring-christmas-green-500"
+                    />
+                    <span className="font-semibold text-gray-700">I'm ready for the draw</span>
+                  </label>
+                </div>
+              )}
               {currentParticipant.wishlist && currentParticipant.wishlist.length > 0 && (
                 <div className="mt-6 p-4 bg-christmas-gold-50 rounded-xl">
                   <h3 className="font-bold text-christmas-gold-600 mb-2">Your Wishlist:</h3>
@@ -352,6 +430,51 @@ export default function EventPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Your Match Section - Only shown if event is drawn and participant has an assignment */}
+        {event.status === 'drawn' && currentParticipant && currentParticipantAssignment && currentParticipantMatch && (
+          <div className="mb-6">
+            {isLoadingAssignments ? (
+              <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-christmas-red-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading your match...</p>
+              </div>
+            ) : (
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-christmas-red-600 mb-4 text-center">
+                  🎁 Your Secret Santa Match
+                </h2>
+                <ResultsCard
+                  assignment={currentParticipantAssignment}
+                  receiver={currentParticipantMatch}
+                  onSendMessage={() => setShowMessageModal(true)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Draw Status Message */}
+        {event.status === 'drawn' && currentParticipant && !currentParticipantAssignment && !isLoadingAssignments && (
+          <div className="mb-6 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-center">
+            <div className="text-4xl mb-2">⏳</div>
+            <h3 className="font-bold text-yellow-700 mb-2">Draw Complete</h3>
+            <p className="text-yellow-600">
+              The draw has been completed, but we couldn't find your assignment. Please contact the organizer.
+            </p>
+          </div>
+        )}
+
+        {/* Waiting for Draw Message */}
+        {event.status === 'active' && currentParticipant && (
+          <div className="mb-6 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl text-center">
+            <div className="text-4xl mb-2">🎄</div>
+            <h3 className="font-bold text-blue-700 mb-2">Waiting for Draw</h3>
+            <p className="text-blue-600">
+              The organizer will run the draw once everyone is ready. Check back soon!
+            </p>
           </div>
         )}
 
@@ -387,6 +510,91 @@ export default function EventPage() {
         isSubmitting={isJoining}
         error={error}
       />
+
+      {/* Anonymous Message Modal */}
+      {showMessageModal && currentParticipantMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-christmas-red-600">
+                💌 Send Anonymous Message
+              </h3>
+              <button
+                onClick={() => {
+                  setShowMessageModal(false)
+                  setMessageText('')
+                }}
+                disabled={isSendingMessage}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-christmas-gold-50 rounded-xl">
+              <p className="text-sm text-gray-600 mb-2">Sending to:</p>
+              <p className="font-bold text-christmas-gold-700">{currentParticipantMatch.name}</p>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
+                Your Message <span className="text-christmas-red-500">*</span>
+              </label>
+              <textarea
+                id="message"
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={6}
+                placeholder="Write your anonymous message here..."
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-christmas-red-500 focus:outline-none transition-colors resize-none"
+                disabled={isSendingMessage}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Your name will not be revealed to the recipient.
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowMessageModal(false)
+                  setMessageText('')
+                  setError(null)
+                }}
+                disabled={isSendingMessage}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={isSendingMessage || !messageText.trim()}
+                className="flex-1 px-6 py-3 bg-christmas-red-500 text-white rounded-xl font-semibold hover:bg-christmas-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {isSendingMessage ? 'Sending...' : 'Send Message'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
