@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { v4 as uuidv4 } from 'uuid'
 import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent } from '../lib/firebase'
 import { sendWelcomeEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
@@ -168,15 +167,25 @@ export default function EventPage() {
     setJoinSuccess(false)
 
     try {
-      const newParticipant: Omit<Participant, 'id' | 'eventId' | 'joinedAt'> = {
+      const now = new Date().toISOString()
+      const newParticipant: Omit<Participant, 'id'> = {
+        eventId: event.id,
         name: formData.name,
         email: formData.email,
         wishlist: formData.wishlist,
         isReady: false,
+        joinedAt: now,
       }
 
-      // Save participant to Firestore
-      await addParticipant(event.id, newParticipant)
+      // Save participant to Firestore (addParticipant expects ParticipantData which omits id)
+      await addParticipant(event.id, {
+        eventId: newParticipant.eventId,
+        name: newParticipant.name,
+        email: newParticipant.email,
+        wishlist: newParticipant.wishlist,
+        isReady: newParticipant.isReady,
+        joinedAt: newParticipant.joinedAt,
+      })
 
       // Get updated event to find the new participant ID
       const updatedEvent = await getEventByCode(code!)
@@ -198,12 +207,13 @@ export default function EventPage() {
       // Send welcome email
       try {
         const eventLink = `${window.location.origin}/event/${event.code}`
+        const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
         await sendWelcomeEmail({
           participantEmail: formData.email,
           participantName: formData.name,
           eventName: event.name,
           eventCode: event.code,
-          eventDate: event.date,
+          eventDate: eventDateStr,
           eventLink,
         })
       } catch (emailError) {
@@ -307,7 +317,7 @@ export default function EventPage() {
 
     setIsRecreating(true)
     try {
-      const newEventId = await recreateEventForNextYear(event, async (eventData) => {
+      await recreateEventForNextYear(event, async (eventData) => {
         return await createFirebaseEvent(eventData)
       })
 

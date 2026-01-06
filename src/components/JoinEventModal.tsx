@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,7 +13,7 @@ type JoinEventFormData = z.infer<typeof joinEventSchema>
 interface JoinEventModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: JoinEventFormData) => Promise<void>
+  onSubmit: (data: { name: string; email: string; wishlist?: string[] }) => Promise<void>
   isSubmitting?: boolean
   error?: string | null
 }

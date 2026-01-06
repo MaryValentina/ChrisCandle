@@ -6,7 +6,7 @@
  */
 
 import { updateEvent } from './firebase'
-import type { Event, EventStatus } from '../types'
+import type { Event } from '../types'
 
 /**
  * Calculate days since event date

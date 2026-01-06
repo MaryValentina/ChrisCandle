@@ -1,9 +1,9 @@
-import { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ProtectedRouteProps {
-  children: ReactNode
+  children?: ReactNode
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -24,6 +24,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />
   }
 
-  return <>{children}</>
+  return children ? <>{children}</> : <Outlet />
 }
 

@@ -12,7 +12,7 @@
  */
 
 import { sendReminderEmail } from './email'
-import type { Event, Participant } from '../types'
+import type { Event } from '../types'
 
 /**
  * Calculate reminder dates for an event
@@ -68,11 +68,12 @@ export async function sendRemindersToParticipants(
     .filter((p) => p.email) // Only send to participants with emails
     .map(async (participant) => {
       try {
+        const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
         await sendReminderEmail({
           participantEmail: participant.email!,
           participantName: participant.name,
           eventName: event.name,
-          eventDate: event.date,
+          eventDate: eventDateStr,
           eventLink,
           daysUntil,
         })

@@ -5,7 +5,6 @@ export default function JoinPage() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,10 +61,9 @@ export default function JoinPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="w-full px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
             >
-              {isLoading ? 'Loading...' : 'Join Event →'}
+              Join Event →
             </button>
           </form>
 

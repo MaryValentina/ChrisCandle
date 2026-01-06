@@ -1,11 +1,14 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   updateProfile,
-  User,
+  setPersistence,
+  browserLocalPersistence,
+  type User,
 } from 'firebase/auth'
 import { getAuthInstance } from '../lib/firebase'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
@@ -47,6 +50,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLoading(false)
       return
     }
+
+    // Configure auth persistence to use localStorage (default, but explicit for reliability)
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.error('Failed to set auth persistence:', error)
+    })
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user)

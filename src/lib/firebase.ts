@@ -463,9 +463,20 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Prom
     // Remove any remaining undefined values
     const firestoreData = removeUndefined(firestoreDataRaw)
 
+    // Debug: Log what we're saving
+    console.log('💾 Saving event to Firestore:', {
+      name: firestoreData.name,
+      code: firestoreData.code,
+      organizerId: firestoreData.organizerId,
+      participantsCount: firestoreData.participants?.length || 0,
+      status: firestoreData.status,
+    })
+
     // Create document with auto-generated ID
     const eventsRef = collection(db, 'events')
     const docRef = await addDoc(eventsRef, firestoreData)
+    
+    console.log('✅ Event saved with document ID:', docRef.id)
     
     // Update participants with eventId
     const participantsWithEventId = eventDoc.participants.map(p => ({

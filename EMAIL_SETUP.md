@@ -121,3 +121,6 @@ All email templates are HTML-based with:
 
 Templates are defined in `src/lib/email.ts` and can be customized as needed.
 
+
+
+

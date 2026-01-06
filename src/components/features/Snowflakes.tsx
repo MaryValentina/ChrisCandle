@@ -1,63 +1,60 @@
-import { useEffect, useState } from 'react'
-
-interface Snowflake {
-  id: number
-  left: number
-  animationDuration: number
-  animationDelay: number
-  size: number
-}
+import { useEffect, useRef } from 'react'
 
 export default function Snowflakes() {
-  const [snowflakes, setSnowflakes] = useState<Snowflake[]>([])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Generate snowflakes
-    const flakes: Snowflake[] = Array.from({ length: 50 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      animationDuration: 5 + Math.random() * 10, // 5-15 seconds
-      animationDelay: Math.random() * 5, // 0-5 seconds
-      size: 5 + Math.random() * 10, // 5-15px
-    }))
-    setSnowflakes(flakes)
+    const container = containerRef.current
+    if (!container) return
+
+    // Create animated snowflakes
+    function createSnowflake() {
+      if (!container) return
+      
+      const snowflake = document.createElement('div')
+      snowflake.classList.add('snowflake')
+      snowflake.innerHTML = '❄'
+      
+      const isGold = Math.random() > 0.6
+      if (isGold) {
+        snowflake.classList.add('gold')
+        snowflake.style.color = '#FFD700'
+        snowflake.style.filter = 'drop-shadow(0 0 3px #FFD700)'
+      } else {
+        snowflake.style.color = '#FFFFFF'
+        snowflake.style.filter = 'drop-shadow(0 0 3px #FFFFFF) brightness(1.2)'
+      }
+      
+      snowflake.style.left = Math.random() * 100 + '%'
+      snowflake.style.animationDuration = Math.random() * 3 + 5 + 's'
+      snowflake.style.opacity = (Math.random() * 0.3 + 0.7).toString()
+      snowflake.style.fontSize = (Math.random() * 2 + 3) + 'em'
+      snowflake.style.textShadow = 'none'
+      snowflake.style.fontWeight = 'bold'
+      
+      container.appendChild(snowflake)
+      
+      setTimeout(() => {
+        snowflake.remove()
+      }, 8000)
+    }
+
+    const interval = setInterval(createSnowflake, 300)
+
+    // Create initial snowflakes
+    for (let i = 0; i < 15; i++) {
+      setTimeout(createSnowflake, i * 200)
+    }
+
+    return () => {
+      clearInterval(interval)
+    }
   }, [])
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      {snowflakes.map((flake) => (
-        <div
-          key={flake.id}
-          className="absolute text-white opacity-80"
-          style={{
-            left: `${flake.left}%`,
-            fontSize: `${flake.size}px`,
-            animation: `fall ${flake.animationDuration}s linear infinite`,
-            animationDelay: `${flake.animationDelay}s`,
-          }}
-        >
-          ❄
-        </div>
-      ))}
-      <style>{`
-        @keyframes fall {
-          0% {
-            transform: translateY(-100vh) rotate(0deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.8;
-          }
-          90% {
-            opacity: 0.8;
-          }
-          100% {
-            transform: translateY(100vh) rotate(360deg);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
+    <>
+      <div className="snowflakes"></div>
+      <div ref={containerRef} className="snowflake-container"></div>
+    </>
   )
 }
-
