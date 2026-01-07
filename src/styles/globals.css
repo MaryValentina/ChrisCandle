@@ -1,105 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* ChrisCandle Theme - Deep Red & Gold */
-    --background: 0 60% 10%;
-    --foreground: 45 70% 85%;
-
-    --card: 0 50% 15%;
-    --card-foreground: 45 70% 85%;
-
-    --popover: 0 50% 12%;
-    --popover-foreground: 45 70% 85%;
-
-    --primary: 43 56% 52%;
-    --primary-foreground: 0 60% 10%;
-
-    --secondary: 0 45% 25%;
-    --secondary-foreground: 45 70% 85%;
-
-    --muted: 0 30% 20%;
-    --muted-foreground: 45 30% 70%;
-
-    --accent: 43 70% 60%;
-    --accent-foreground: 0 60% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 0 40% 25%;
-    --input: 0 40% 25%;
-    --ring: 43 56% 52%;
-
-    --radius: 0.75rem;
-
-    /* Custom ChrisCandle tokens */
-    --christmas-red: 0 65% 32%;
-    --christmas-red-dark: 0 70% 18%;
-    --christmas-red-deep: 0 75% 12%;
-    --gold: 43 56% 52%;
-    --gold-light: 45 70% 70%;
-    --gold-dark: 38 50% 40%;
-    --snow-white: 0 0% 98%;
-    --snow-gold: 45 60% 80%;
-
-    /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(43, 56%, 52%) 0%, hsl(45, 70%, 70%) 50%, hsl(43, 56%, 52%) 100%);
-    --gradient-red: linear-gradient(180deg, hsl(0, 65%, 32%) 0%, hsl(0, 70%, 18%) 100%);
-    
-    /* Shadows */
-    --shadow-gold: 0 4px 20px hsla(43, 56%, 52%, 0.4);
-    --shadow-gold-lg: 0 8px 40px hsla(43, 56%, 52%, 0.5);
-    --text-shadow-gold: 0 2px 10px hsla(43, 56%, 52%, 0.6), 0 4px 20px hsla(43, 56%, 52%, 0.3);
-
-    /* Legacy color variables */
     --color-christmas-red: 239 68 68;
     --color-christmas-green: 34 197 94;
     --color-christmas-gold: 245 158 11;
   }
 
-  .dark {
-    --background: 0 70% 8%;
-    --foreground: 45 70% 90%;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Poppins', sans-serif;
+    @apply antialiased;
     margin: 0;
     padding: 0;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
-  }
-
-  html {
+  html, body {
     width: 100%;
     height: 100%;
     overflow-x: hidden;
     margin: 0;
     padding: 0;
-    /* Calculate scrollbar width */
-    scrollbar-width: thin;
-  }
-
-  body {
-    width: 100%;
-    height: 100%;
-    overflow-x: hidden;
-    margin: 0;
-    padding: 0;
-    /* Account for scrollbar */
-    padding-right: calc(100vw - 100%);
   }
 
   #root {
@@ -107,6 +28,10 @@
     min-height: 100vh;
     margin: 0;
     padding: 0;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 }
 
@@ -154,124 +79,5 @@
 }
 
 @layer utilities {
-  .font-display {
-    font-family: 'Playfair Display', serif;
-  }
-
-  .font-body {
-    font-family: 'Poppins', sans-serif;
-  }
-
-  /* Text gradient utilities */
-  .text-gradient-gold {
-    background: var(--gradient-gold);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .text-shadow-gold {
-    text-shadow: var(--text-shadow-gold);
-  }
-
-  .shadow-gold {
-    box-shadow: var(--shadow-gold);
-  }
-
-  .shadow-gold-lg {
-    box-shadow: var(--shadow-gold-lg);
-  }
-}
-
-/* Snowflake Animations */
-@keyframes snowfall {
-  0% {
-    transform: translateY(-10vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(110vh) translateX(20px) rotate(360deg);
-    opacity: 0.3;
-  }
-}
-
-@keyframes snowfall-slow {
-  0% {
-    transform: translateY(-10vh) translateX(0) rotate(0deg);
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(110vh) translateX(-15px) rotate(180deg);
-    opacity: 0.2;
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    filter: drop-shadow(0 0 10px hsla(43, 56%, 52%, 0.5));
-  }
-  50% {
-    filter: drop-shadow(0 0 25px hsla(43, 56%, 52%, 0.8));
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-snowfall {
-  animation: snowfall linear infinite;
-}
-
-.animate-snowfall-slow {
-  animation: snowfall-slow linear infinite;
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-shimmer {
-  background-size: 200% auto;
-  animation: shimmer 3s linear infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease-in;
+  /* Custom utility classes can be added here */
 }

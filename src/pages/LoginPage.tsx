@@ -1,172 +1,131 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import Snowflakes from '../components/Snowflakes';
-import { Gift, Heart } from 'lucide-react';
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate()
+  const { login } = useAuth()
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
 
-    if (!email.trim()) {
-      setError('Please enter your email');
-      return;
+    if (!formData.email.trim()) {
+      setError('Please enter your email')
+      return
     }
 
-    if (!password) {
-      setError('Please enter your password');
-      return;
+    if (!formData.password) {
+      setError('Please enter your password')
+      return
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      await login(formData.email, formData.password)
+      // Navigate to dashboard after successful login
+      navigate('/dashboard')
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('Login error:', err)
       if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email');
-      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Incorrect password');
+        setError('No account found with this email')
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password')
       } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address');
+        setError('Invalid email address')
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password')
       } else {
-        setError(err.message || 'Failed to login. Please try again.');
+        setError(err.message || 'Failed to login. Please try again.')
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-      {/* Snowflakes Background */}
-      <Snowflakes />
-
-      {/* Decorative Elements */}
-      <div className="absolute top-10 left-10 text-gold opacity-20 animate-float">
-        <Gift size={60} />
-      </div>
-      <div className="absolute bottom-20 right-10 text-gold opacity-20 animate-float" style={{ animationDelay: '1s' }}>
-        <Gift size={50} />
-      </div>
-      <div className="absolute top-1/4 right-20 text-gold opacity-15 animate-float" style={{ animationDelay: '2s' }}>
-        <Gift size={40} />
-      </div>
-
-      {/* Main Card */}
-      <div className="relative z-10 w-full max-w-md mx-4">
-        {/* Glowing background effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gold/10 via-transparent to-gold/5 rounded-3xl blur-xl" />
-        
-        <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl p-8 md:p-10 border border-gold/20 shadow-gold-lg">
-          {/* Header */}
+    <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
+      <div className="max-w-md w-full">
+        <div className="bg-white rounded-2xl shadow-christmas-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="font-display text-3xl md:text-4xl font-bold text-christmas-red-900 mb-4">
-              Welcome Back
+            <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
+              🎄 Login
             </h1>
-            <p className="text-christmas-red-900/80 font-body text-sm">
-              Sign in to spread holiday cheer ✨
+            <p className="text-gray-600">
+              Sign in to manage your Secret Santa events
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                Email <span className="text-christmas-red-500">*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="john@example.com"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-christmas-red-500 transition-colors"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                Password <span className="text-christmas-red-500">*</span>
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter your password"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-christmas-green-500 transition-colors"
+                required
+              />
+            </div>
+
             {error && (
               <div className="p-4 bg-christmas-red-50 border-2 border-christmas-red-200 rounded-xl">
                 <p className="text-sm text-christmas-red-600">{error}</p>
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-christmas-red-900/90 font-body text-sm">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="santa@northpole.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-12 font-body transition-all duration-300"
-                required
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-christmas-red-900/90 font-body text-sm">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-12 font-body transition-all duration-300"
-                required
-              />
-            </div>
-
-            <Button
+            <button
               type="submit"
-              variant="heroGlow"
               disabled={isLoading}
-              className="w-full h-12 rounded-xl font-body text-base mt-6 group"
+              className="w-full px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              <span className="flex items-center gap-2">
-                {isLoading ? 'Signing In...' : 'Sign In'}
-                <Heart className="w-4 h-4 group-hover:scale-125 transition-transform duration-300 fill-current" />
-              </span>
-            </Button>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
           </form>
 
-          {/* Toggle */}
-          <div className="mt-8 text-center">
-            <p className="text-christmas-red-900 font-body text-sm">
-              New to ChrisCandle?{' '}
-              <Link
-                to="/signup"
-                className="ml-2 text-christmas-red-900 font-bold hover:text-christmas-red-700 transition-colors duration-300 hover:underline underline-offset-4"
-              >
-                Join the party! 🎉
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-christmas-red-600 hover:text-christmas-red-700 font-semibold">
+                Sign Up
               </Link>
             </p>
-          </div>
-
-          {/* Back to Home */}
-          <div className="mt-6 text-center">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-christmas-red-900/70 hover:text-christmas-red-900 font-body text-sm transition-colors duration-300"
+              className="block mt-4 text-sm text-gray-600 hover:text-christmas-red-600 transition-colors"
             >
-              <span>←</span>
-              <span>Back to Home</span>
+              ← Back to Home
             </Link>
           </div>
         </div>
-
-        {/* Bottom decoration */}
-        <div className="flex justify-center mt-6 gap-2 opacity-60">
-          <span className="text-2xl animate-float" style={{ animationDelay: '0s' }}>🎄</span>
-          <span className="text-2xl animate-float" style={{ animationDelay: '0.5s' }}>✨</span>
-          <span className="text-2xl animate-float" style={{ animationDelay: '1s' }}>🎁</span>
-          <span className="text-2xl animate-float" style={{ animationDelay: '1.5s' }}>⭐</span>
-          <span className="text-2xl animate-float" style={{ animationDelay: '2s' }}>🎄</span>
-        </div>
       </div>
     </div>
-  );
+  )
 }
+

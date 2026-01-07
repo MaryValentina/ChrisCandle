@@ -228,7 +228,7 @@ export default function AdminPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-christmas-red-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading event...</p>
@@ -239,7 +239,7 @@ export default function AdminPage() {
 
   if (error || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
           <div className="text-4xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
@@ -262,7 +262,7 @@ export default function AdminPage() {
   // Check if user is organizer (already checked in ProtectedRoute, but double-check here)
   if (!organizerId || !event || event.organizerId !== organizerId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-background p-4 md:p-8 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
           <div className="text-4xl mb-4">🔒</div>
           <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Access Denied</h2>
@@ -281,7 +281,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">
+    <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <button
@@ -599,4 +599,3 @@ export default function AdminPage() {
     </div>
   )
 }
-
