@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent } from '../lib/firebase'
+import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail } from '../lib/firebase'
 import { sendWelcomeEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
 import { checkAndExpireEvent, getEventStatusMessage, recreateEventForNextYear } from '../lib/eventExpiry'
 import ParticipantCard from '../components/features/ParticipantCard'
 import JoinEventModal from '../components/JoinEventModal'
+import ReEnterEmailModal from '../components/ReEnterEmailModal'
 import ResultsCard from '../components/features/ResultsCard'
+import CountdownTimer from '../components/CountdownTimer'
+import { trackEvent, AnalyticsEvents } from '../lib/analytics'
 import { useAuth } from '../contexts/AuthContext'
 import type { Participant, Event, Assignment } from '../types'
 
@@ -20,9 +23,12 @@ export default function EventPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showReEnterModal, setShowReEnterModal] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
+  const [isReEntering, setIsReEntering] = useState(false)
   const [joinSuccess, setJoinSuccess] = useState(false)
   const [currentParticipantId, setCurrentParticipantId] = useState<string | null>(null)
+  const [reEnterError, setReEnterError] = useState<string | null>(null)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false)
   const [showMessageModal, setShowMessageModal] = useState(false)
@@ -49,7 +55,10 @@ export default function EventPage() {
       // Check by email (new method)
       const storedEmail = localStorage.getItem(`participant_email_${event.code}`)
       if (storedEmail) {
-        const participant = event.participants.find((p) => p.email === storedEmail)
+        const normalizedStoredEmail = storedEmail.toLowerCase().trim()
+        const participant = event.participants.find(
+          (p) => p.email?.toLowerCase().trim() === normalizedStoredEmail
+        )
         if (participant) {
           setCurrentParticipantId(participant.id)
           localStorage.setItem(`participant_${event.id}`, participant.id)
@@ -57,6 +66,39 @@ export default function EventPage() {
       }
     }
   }, [event])
+
+  const handleReEnterEmail = async (email: string) => {
+    if (!event) return
+
+    setIsReEntering(true)
+    setReEnterError(null)
+
+    try {
+      const participant = await findParticipantByEmail(event.id, email)
+      if (participant) {
+        setCurrentParticipantId(participant.id)
+          localStorage.setItem(`participant_${event.id}`, participant.id)
+          localStorage.setItem(`participant_email_${event.code}`, email)
+          if (participant.name) {
+            localStorage.setItem(`participant_name_${event.code}`, participant.name)
+          }
+          setShowReEnterModal(false)
+          
+          // Track re-entry
+          trackEvent(AnalyticsEvents.PARTICIPANT_REENTERED, {
+            event_id: event.id,
+            event_code: event.code,
+          })
+      } else {
+        setReEnterError('No participant found with this email address. Please check your email and try again, or join the event if you haven\'t already.')
+      }
+    } catch (err) {
+      console.error('Error finding participant:', err)
+      setReEnterError(err instanceof Error ? err.message : 'Failed to find participant. Please try again.')
+    } finally {
+      setIsReEntering(false)
+    }
+  }
 
   // Fetch event and set up real-time subscription
   useEffect(() => {
@@ -78,6 +120,12 @@ export default function EventPage() {
           setIsLoading(false)
           return
         }
+
+        // Track event view
+        trackEvent(AnalyticsEvents.EVENT_VIEWED, {
+          event_id: fetchedEvent.id,
+          event_code: fetchedEvent.code,
+        })
 
         // Check and expire event if needed (if date passed > 7 days)
         try {
@@ -225,13 +273,25 @@ export default function EventPage() {
       setJoinSuccess(true)
       setShowJoinModal(false)
 
+      // Track participant joined
+      trackEvent(AnalyticsEvents.PARTICIPANT_JOINED, {
+        event_id: event.id,
+        event_code: event.code,
+      })
+
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
         setJoinSuccess(false)
       }, 5000)
     } catch (err) {
       console.error('Error joining event:', err)
-      setError(err instanceof Error ? err.message : 'Failed to join event')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to join event'
+      // Check if it's a duplicate email error
+      if (errorMessage.includes('already registered')) {
+        setError(errorMessage)
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setIsJoining(false)
     }
@@ -453,6 +513,14 @@ export default function EventPage() {
         {/* Event Details */}
         <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
           <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Event Details</h2>
+          
+          {/* Countdown Timer */}
+          {event.status === 'active' && (
+            <div className="mb-6 p-4 bg-christmas-gold-50 rounded-xl">
+              <CountdownTimer eventDate={event.date} />
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 bg-christmas-red-50 rounded-xl">
               <div className="text-sm text-gray-600 mb-1">📅 Exchange Date</div>
@@ -515,12 +583,20 @@ export default function EventPage() {
               <p className="text-gray-600 mb-6">
                 Add your name, email, and wishlist to participate in this Secret Santa
               </p>
-              <button
-                onClick={() => setShowJoinModal(true)}
-                className="px-8 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
-              >
-                Join Event
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => setShowJoinModal(true)}
+                  className="px-8 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+                >
+                  Join Event
+                </button>
+                <button
+                  onClick={() => setShowReEnterModal(true)}
+                  className="px-8 py-4 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas"
+                >
+                  Already Joined? Re-enter Email
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -636,6 +712,18 @@ export default function EventPage() {
         onSubmit={handleJoinEvent}
         isSubmitting={isJoining}
         error={error}
+      />
+
+      {/* Re-enter Email Modal */}
+      <ReEnterEmailModal
+        isOpen={showReEnterModal}
+        onClose={() => {
+          setShowReEnterModal(false)
+          setReEnterError(null)
+        }}
+        onSubmit={handleReEnterEmail}
+        isSubmitting={isReEntering}
+        error={reEnterError}
       />
 
       {/* Recreate Event Modal */}

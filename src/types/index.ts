@@ -64,6 +64,8 @@ export interface Event {
   status: EventStatus
   /** Optional description or instructions */
   description?: string
+  /** Custom expiry duration in days (default: 7). Event expires this many days after the event date. */
+  expiryDays?: number
   /** When the event was created (Firestore timestamp - required for Firestore) */
   createdAt: FirestoreDate
 }

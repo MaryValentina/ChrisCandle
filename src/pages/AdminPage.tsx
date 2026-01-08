@@ -1,13 +1,39 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, updateEvent, saveAssignments } from '../lib/firebase'
+import { getEventByCode, subscribeToEvent, updateEvent, saveAssignments, getAssignments } from '../lib/firebase'
 import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
-import { sendDrawEmail } from '../lib/email'
+import { sendDrawEmail, sendWelcomeEmail } from '../lib/email'
+import { triggerDrawConfetti } from '../lib/confetti'
+import { trackEvent, AnalyticsEvents } from '../lib/analytics'
 import { checkAndExpireEvent } from '../lib/eventExpiry'
-import QRCodeSVG from 'react-qr-code'
+import Navbar from '../components/Navbar'
+import Snowflakes from '../components/Snowflakes'
+import { Button } from '../components/ui/button'
+import { 
+  ArrowLeft, 
+  Copy, 
+  Check, 
+  Link as LinkIcon, 
+  Users, 
+  CheckCircle, 
+  Activity,
+  Calendar,
+  DollarSign,
+  Shuffle,
+  Eye,
+  Settings,
+  X,
+  Gift,
+  Sparkles,
+  Mail,
+  ListChecks,
+  Download,
+  Send,
+  ToggleRight
+} from 'lucide-react'
 import type { Event } from '../types'
 
 export default function AdminPage() {
@@ -23,9 +49,12 @@ export default function AdminPage() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [showDateModal, setShowDateModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showExpiryModal, setShowExpiryModal] = useState(false)
   const [newDate, setNewDate] = useState('')
+  const [newExpiryDays, setNewExpiryDays] = useState('')
   const [copied, setCopied] = useState(false)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
   // Fetch event and set up real-time subscription
@@ -121,22 +150,22 @@ export default function AdminPage() {
 
       // Send draw completion emails to all participants
       const eventLink = `${window.location.origin}/event/${event.code}`
-            const emailPromises = assignments.map(async (assignment) => {
-              const giver = event.participants.find((p) => p.id === assignment.giverId)
-              const receiver = event.participants.find((p) => p.id === assignment.receiverId)
+      const emailPromises = assignments.map(async (assignment) => {
+        const giver = event.participants.find((p) => p.id === assignment.giverId)
+        const receiver = event.participants.find((p) => p.id === assignment.receiverId)
 
-              if (giver && receiver && giver.email) {
-                try {
-                  const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
-                  await sendDrawEmail({
-                    participantEmail: giver.email,
-                    participantName: giver.name,
-                    receiverName: receiver.name,
-                    receiverWishlist: receiver.wishlist,
-                    eventName: event.name,
-                    eventDate: eventDateStr,
-                    eventLink,
-                  })
+        if (giver && receiver && giver.email) {
+          try {
+            const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
+            await sendDrawEmail({
+              participantEmail: giver.email,
+              participantName: giver.name,
+              receiverName: receiver.name,
+              receiverWishlist: receiver.wishlist,
+              eventName: event.name,
+              eventDate: eventDateStr,
+              eventLink,
+            })
           } catch (emailError) {
             // Don't fail the draw if email fails
             console.warn(`Failed to send draw email to ${giver.email}:`, emailError)
@@ -149,6 +178,16 @@ export default function AdminPage() {
 
       // Update local store
       await runDrawInStore()
+
+      // Trigger confetti celebration
+      triggerDrawConfetti()
+
+      // Track analytics
+      trackEvent(AnalyticsEvents.DRAW_COMPLETED, {
+        event_id: event.id,
+        event_code: event.code,
+        participant_count: event.participants.length,
+      })
 
       // Navigate to results
       navigate(`/results/${event.code}`)
@@ -218,6 +257,10 @@ export default function AdminPage() {
       await updateEvent(event.id, { status: 'expired' })
       setShowCancelModal(false)
       setError(null)
+      trackEvent(AnalyticsEvents.EVENT_SETTINGS_UPDATED, {
+        event_id: event.id,
+        action: 'cancel_event',
+      })
     } catch (err) {
       console.error('Error canceling event:', err)
       setError(err instanceof Error ? err.message : 'Failed to cancel event')
@@ -226,12 +269,145 @@ export default function AdminPage() {
     }
   }
 
+  const handleResendEmail = async (participantId: string) => {
+    if (!event) return
+
+    setIsResendingEmail(participantId)
+    try {
+      const participant = event.participants.find((p) => p.id === participantId)
+      if (!participant || !participant.email) {
+        setError('Participant email not found')
+        return
+      }
+
+      const eventLink = `${window.location.origin}/event/${event.code}`
+      const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
+
+      // Check if draw has been completed
+      if (event.status === 'drawn') {
+        // Resend draw email
+        const assignments = await getAssignments(event.id)
+        const assignment = assignments.find((a) => a.giverId === participantId)
+        if (assignment) {
+          const receiver = event.participants.find((p) => p.id === assignment.receiverId)
+          if (receiver) {
+            await sendDrawEmail({
+              participantEmail: participant.email,
+              participantName: participant.name,
+              receiverName: receiver.name,
+              receiverWishlist: receiver.wishlist,
+              eventName: event.name,
+              eventDate: eventDateStr,
+              eventLink,
+            })
+            trackEvent(AnalyticsEvents.EMAIL_RESENT, {
+              event_id: event.id,
+              email_type: 'draw',
+              participant_id: participantId,
+            })
+          }
+        }
+      } else {
+        // Resend welcome email
+        await sendWelcomeEmail({
+          participantEmail: participant.email,
+          participantName: participant.name,
+          eventName: event.name,
+          eventCode: event.code,
+          eventDate: eventDateStr,
+          eventLink,
+        })
+        trackEvent(AnalyticsEvents.EMAIL_RESENT, {
+          event_id: event.id,
+          email_type: 'welcome',
+          participant_id: participantId,
+        })
+      }
+    } catch (err) {
+      console.error('Error resending email:', err)
+      setError(err instanceof Error ? err.message : 'Failed to resend email')
+    } finally {
+      setIsResendingEmail(null)
+    }
+  }
+
+  const handleExportCSV = () => {
+    if (!event) return
+
+    // Create CSV content
+    const headers = ['Name', 'Email', 'Wishlist', 'Ready', 'Joined At']
+    const rows = event.participants.map((p) => [
+      p.name,
+      p.email || '',
+      p.wishlist?.join('; ') || '',
+      p.isReady ? 'Yes' : 'No',
+      new Date(p.joinedAt).toLocaleDateString(),
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(','))
+    ].join('\n')
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `participants_${event.code}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    trackEvent(AnalyticsEvents.CSV_EXPORTED, {
+      event_id: event.id,
+      participant_count: event.participants.length,
+    })
+  }
+
+  const handleUpdateExpiryDays = async () => {
+    if (!event || !newExpiryDays) return
+
+    const expiryDays = parseInt(newExpiryDays, 10)
+    if (isNaN(expiryDays) || expiryDays < 1) {
+      setError('Please enter a valid number of days (minimum 1)')
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      await updateEvent(event.id, { expiryDays })
+      setShowExpiryModal(false)
+      setNewExpiryDays('')
+      setError(null)
+      trackEvent(AnalyticsEvents.EVENT_SETTINGS_UPDATED, {
+        event_id: event.id,
+        action: 'update_expiry',
+        expiry_days: expiryDays,
+      })
+    } catch (err) {
+      console.error('Error updating expiry days:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update expiry days')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const readyCount = event?.participants.filter((p) => p.isReady).length || 0
+  const totalCount = event?.participants.length || 0
+  const readyPercentage = totalCount > 0 ? Math.round((readyCount / totalCount) * 100) : 0
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-christmas-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading event...</p>
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <div className="text-center relative z-10">
+          <div className="relative inline-block mb-6">
+            <Gift className="h-16 w-16 text-gold mx-auto animate-float" />
+            <Sparkles className="h-6 w-6 text-gold absolute -top-2 -right-2 animate-pulse-glow" />
+          </div>
+          <p className="text-snow-white/70 font-body">Loading event...</p>
         </div>
       </div>
     )
@@ -239,21 +415,23 @@ export default function AdminPage() {
 
   if (error || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-8 text-center max-w-md relative z-10">
+          <div className="text-5xl mb-4">⚠️</div>
+          <h2 className="font-display text-2xl text-gold mb-4">
             {error || 'Event Not Found'}
           </h2>
-          <p className="text-gray-600 mb-6">
-            {error || 'The event you\'re looking for doesn\'t exist.'}
+          <p className="text-snow-white/70 mb-6">
+            {error || "The event you're looking for doesn't exist."}
           </p>
-          <button
+          <Button
+            variant="hero"
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+            className="shadow-gold"
           >
             Go Home
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -262,254 +440,390 @@ export default function AdminPage() {
   // Check if user is organizer (already checked in ProtectedRoute, but double-check here)
   if (!organizerId || !event || event.organizerId !== organizerId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <div className="text-4xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-6">
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-8 text-center max-w-md relative z-10">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="font-display text-2xl text-gold mb-4">Access Denied</h2>
+          <p className="text-snow-white/70 mb-6">
             You must be the event organizer to access this page.
           </p>
-          <button
+          <Button
+            variant="hero"
             onClick={() => navigate(`/event/${code}`)}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+            className="shadow-gold"
           >
             View Public Event
-          </button>
+          </Button>
         </div>
       </div>
     )
   }
 
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'active':
+        return { color: 'text-green-400', bg: 'bg-green-500/20', label: 'Open for participants' }
+      case 'drawn':
+        return { color: 'text-gold', bg: 'bg-gold/20', label: 'Assignments generated' }
+      case 'completed':
+        return { color: 'text-snow-white', bg: 'bg-snow-white/20', label: 'Event finished' }
+      case 'expired':
+        return { color: 'text-destructive', bg: 'bg-destructive/20', label: 'Event cancelled' }
+      default:
+        return { color: 'text-muted-foreground', bg: 'bg-muted/20', label: 'Unknown' }
+    }
+  }
+
+  const statusConfig = getStatusConfig(event.status)
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <Snowflakes />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">🔐</div>
+      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      
+      <Navbar />
+      
+      <main className="container mx-auto px-4 pt-32 pb-16 relative z-10">
+        {/* Back Button & Header */}
+        <div className="mb-8">
           <button
             onClick={() => navigate(`/event/${code}`)}
-            className="text-christmas-red-600 hover:text-christmas-red-700 font-semibold mb-4"
+            className="inline-flex items-center gap-2 text-gold hover:text-gold-light transition-colors mb-4 font-body"
           >
-            ← Back to Event
+            <ArrowLeft className="h-4 w-4" />
+            Back to Event
           </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
-            🔒 Admin Dashboard
-          </h1>
-          <p className="text-gray-600">Manage your Secret Santa event</p>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">🔒</span>
+            <div>
+              <h1 className="font-display text-4xl md:text-5xl text-gradient-gold">
+                Admin Dashboard
+              </h1>
+              <p className="text-snow-white/70 mt-1">
+                Manage your Secret Santa event
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Event Stats - Real-time participant count */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-christmas-lg p-6">
-            <div className="text-sm text-gray-600 mb-1">Participants</div>
-            <div className="text-3xl font-bold text-christmas-green-600">
-              {event.participants.length}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gold/20 rounded-lg">
+                <Users className="h-5 w-5 text-gold" />
+              </div>
+              <span className="text-sm text-snow-white/60 font-body">Participants</span>
             </div>
-            <div className="text-xs text-gray-500 mt-1">Real-time count</div>
+            <div className="text-4xl font-display text-gold">{totalCount}</div>
+            <p className="text-xs text-snow-white/50 mt-1 font-body">Real-time count</p>
           </div>
-          <div className="bg-white rounded-xl shadow-christmas-lg p-6">
-            <div className="text-sm text-gray-600 mb-1">Ready</div>
-            <div className="text-3xl font-bold text-christmas-gold-600">
-              {event.participants.filter((p) => p.isReady).length}
+
+          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gold/20 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-gold" />
+              </div>
+              <span className="text-sm text-snow-white/60 font-body">Ready</span>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {event.participants.length > 0
-                ? `${Math.round((event.participants.filter((p) => p.isReady).length / event.participants.length) * 100)}% ready`
-                : '0% ready'}
-            </div>
+            <div className="text-4xl font-display text-gold">{readyCount}</div>
+            <p className="text-xs text-snow-white/50 mt-1 font-body">{readyPercentage}% ready</p>
           </div>
-          <div className="bg-white rounded-xl shadow-christmas-lg p-6">
-            <div className="text-sm text-gray-600 mb-1">Status</div>
-            <div className="text-xl font-bold text-christmas-red-600 capitalize">
+
+          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gold/20 rounded-lg">
+                <Activity className="h-5 w-5 text-gold" />
+              </div>
+              <span className="text-sm text-snow-white/60 font-body">Status</span>
+            </div>
+            <div className={`text-2xl font-display capitalize ${statusConfig.color}`}>
               {event.status}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {event.status === 'active' && 'Open for participants'}
-              {event.status === 'drawn' && 'Assignments generated'}
-              {event.status === 'completed' && 'Event finished'}
-              {event.status === 'expired' && 'Event cancelled'}
-            </div>
+            <p className="text-xs text-snow-white/50 mt-1 font-body">{statusConfig.label}</p>
           </div>
         </div>
 
         {/* Event Details & Share */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Event Details</h2>
-          <div className="space-y-3 mb-6">
-            <div>
-              <span className="font-semibold text-gray-700">Name:</span>{' '}
-              <span className="text-gray-900">{event.name}</span>
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+          <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+            <Gift className="h-6 w-6" />
+            Event Details
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="flex items-center gap-3 text-snow-white/80">
+              <Sparkles className="h-4 w-4 text-gold/70" />
+              <span className="text-snow-white/60">Name:</span>
+              <span className="font-medium">{event.name}</span>
             </div>
-            <div>
-              <span className="font-semibold text-gray-700">Code:</span>{' '}
-              <span className="font-mono font-bold text-christmas-red-600">{event.code}</span>
+            <div className="flex items-center gap-3 text-snow-white/80">
+              <span className="text-2xl">🎫</span>
+              <span className="text-snow-white/60">Code:</span>
+              <span className="font-mono font-bold text-gold">{event.code}</span>
             </div>
-            <div>
-              <span className="font-semibold text-gray-700">Date:</span>{' '}
-              <span className="text-gray-900">
-                {format(new Date(event.date), 'MMMM d, yyyy')}
-              </span>
+            <div className="flex items-center gap-3 text-snow-white/80">
+              <Calendar className="h-4 w-4 text-gold/70" />
+              <span className="text-snow-white/60">Date:</span>
+              <span>{format(new Date(event.date), 'MMMM d, yyyy')}</span>
             </div>
             {event.budget && (
-              <div>
-                <span className="font-semibold text-gray-700">Budget:</span>{' '}
-                <span className="text-gray-900">${event.budget}</span>
+              <div className="flex items-center gap-3 text-snow-white/80">
+                <DollarSign className="h-4 w-4 text-gold/70" />
+                <span className="text-snow-white/60">Budget:</span>
+                <span>${event.budget}</span>
               </div>
             )}
           </div>
 
-          {/* Share Buttons */}
-          <div className="border-t pt-4 space-y-3">
-            <h3 className="font-semibold text-gray-700 mb-3">Share Event</h3>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
+          {/* Share Section */}
+          <div className="border-t border-gold/20 pt-6">
+            <h3 className="font-display text-lg text-gold mb-4 flex items-center gap-2">
+              <LinkIcon className="h-5 w-5" />
+              Share Event
+            </h3>
+            
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
+              <Button
                 onClick={handleCopyCode}
-                className="flex-1 px-4 py-3 bg-christmas-red-50 text-christmas-red-600 rounded-xl font-semibold hover:bg-christmas-red-100 transition-colors border-2 border-christmas-red-200 flex items-center justify-center gap-2"
+                variant="outline"
+                className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
               >
                 {copied ? (
                   <>
-                    <span>✓</span>
-                    <span>Code Copied!</span>
+                    <Check className="mr-2 h-4 w-4" />
+                    Code Copied!
                   </>
                 ) : (
                   <>
-                    <span>📋</span>
-                    <span>Copy Event Code</span>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Event Code
                   </>
                 )}
-              </button>
-              <button
+              </Button>
+              
+              <Button
                 onClick={handleCopyShareLink}
-                className="flex-1 px-4 py-3 bg-christmas-green-50 text-christmas-green-600 rounded-xl font-semibold hover:bg-christmas-green-100 transition-colors border-2 border-christmas-green-200 flex items-center justify-center gap-2"
+                variant="outline"
+                className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
               >
                 {shareLinkCopied ? (
                   <>
-                    <span>✓</span>
-                    <span>Link Copied!</span>
+                    <Check className="mr-2 h-4 w-4" />
+                    Link Copied!
                   </>
                 ) : (
                   <>
-                    <span>🔗</span>
-                    <span>Copy Share Link</span>
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    Copy Share Link
                   </>
                 )}
-              </button>
+              </Button>
             </div>
+
             {shareableLink && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-                <div className="text-xs text-gray-600 mb-2">Shareable Link:</div>
-                <div className="text-sm font-mono text-gray-800 break-all">{shareableLink}</div>
-              </div>
-            )}
-            {event.code && (
-              <div className="mt-4 p-4 bg-white border-2 border-gray-200 rounded-xl flex justify-center">
-                <QRCodeSVG value={shareableLink} size={150} />
+              <div className="bg-muted/50 rounded-xl p-4">
+                <div className="text-xs text-snow-white/50 mb-2 font-body">Shareable Link:</div>
+                <div className="text-sm font-mono text-gold break-all">{shareableLink}</div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Participants List with Emails */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
-            Participants ({event.participants.length})
+        {/* Participants List */}
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+          <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            Participants ({totalCount})
           </h2>
-          {event.participants.length === 0 ? (
-            <p className="text-gray-600">No participants yet.</p>
+          
+          {totalCount === 0 ? (
+            <p className="text-snow-white/60 text-center py-8 font-body">No participants yet.</p>
           ) : (
             <div className="space-y-3">
               {event.participants.map((participant) => (
                 <div
                   key={participant.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-gold/20"
                 >
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{participant.name}</div>
+                    <div className="font-semibold text-snow-white font-body">{participant.name}</div>
                     {participant.email ? (
-                      <div className="text-sm text-gray-600 mt-1">{participant.email}</div>
+                      <div className="text-sm text-snow-white/60 mt-1 flex items-center gap-2 font-body">
+                        <Mail className="h-3 w-3" />
+                        {participant.email}
+                      </div>
                     ) : (
-                      <div className="text-xs text-gray-400 mt-1">No email provided</div>
+                      <div className="text-xs text-snow-white/40 mt-1 font-body">No email provided</div>
                     )}
                     {participant.wishlist && participant.wishlist.length > 0 && (
-                      <div className="text-xs text-christmas-gold-600 mt-1">
+                      <div className="text-xs text-gold mt-1 flex items-center gap-2 font-body">
+                        <ListChecks className="h-3 w-3" />
                         {participant.wishlist.length} wishlist item(s)
                       </div>
                     )}
                   </div>
-                  <div
-                    className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      participant.isReady
-                        ? 'bg-christmas-green-100 text-christmas-green-700'
-                        : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {participant.isReady ? '✓ Ready' : 'Not Ready'}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`px-3 py-1.5 rounded-full text-sm font-semibold font-body flex items-center gap-1 ${
+                        participant.isReady
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          : 'bg-muted text-snow-white/60 border border-snow-white/20'
+                      }`}
+                    >
+                      {participant.isReady ? (
+                        <>
+                          <Check className="h-3 w-3" />
+                          Ready
+                        </>
+                      ) : (
+                        'Not Ready'
+                      )}
+                    </div>
+                    {participant.email && (
+                      <button
+                        onClick={() => handleResendEmail(participant.id)}
+                        disabled={isResendingEmail === participant.id}
+                        className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-colors disabled:opacity-50"
+                        title="Resend email"
+                        aria-label={`Resend email to ${participant.name}`}
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+          
+          {/* Export CSV Button */}
+          {totalCount > 0 && (
+            <div className="mt-6 pt-6 border-t border-gold/20">
+              <Button
+                onClick={handleExportCSV}
+                variant="outline"
+                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Participants (CSV)
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Draw Actions</h2>
+        {/* Draw Actions */}
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+          <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+            <Shuffle className="h-6 w-6" />
+            Draw Actions
+          </h2>
+          
           <div className="space-y-4">
             {canRunDraw ? (
-              <button
+              <Button
                 onClick={handleRunDraw}
                 disabled={isRunningDraw}
-                className="w-full px-6 py-4 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
+                variant="hero"
+                size="lg"
+                className="w-full shadow-gold-lg hover:scale-[1.02] transition-transform"
               >
-                {isRunningDraw ? 'Running Draw...' : '🎲 Start Draw'}
-              </button>
+                {isRunningDraw ? (
+                  <>
+                    <div className="animate-spin mr-2 h-5 w-5 border-2 border-current border-t-transparent rounded-full" />
+                    Running Draw...
+                  </>
+                ) : (
+                  <>
+                    <Shuffle className="mr-2 h-5 w-5" />
+                    🎲 Start Draw
+                  </>
+                )}
+              </Button>
             ) : (
-              <div className="p-4 bg-gray-100 rounded-xl text-gray-600">
-                {event.participants.length < 2
-                  ? 'Need at least 2 participants to run draw'
+              <div className="p-4 bg-muted/50 rounded-xl text-snow-white/60 text-center font-body border border-snow-white/10">
+                {totalCount < 2
+                  ? '⚠️ Need at least 2 participants to run draw'
                   : !event.participants.every((p) => p.isReady)
-                  ? 'All participants must be ready'
+                  ? '⏳ All participants must be ready'
                   : event.status === 'drawn'
-                  ? 'Draw has already been completed'
-                  : 'Cannot run draw at this time'}
+                  ? '✅ Draw has already been completed'
+                  : '🚫 Cannot run draw at this time'}
               </div>
             )}
 
             {event.status === 'drawn' && (
-              <button
+              <Button
                 onClick={() => navigate(`/results/${code}`)}
-                className="w-full px-6 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+                variant="outline"
+                size="lg"
+                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20"
               >
+                <Eye className="mr-2 h-5 w-5" />
                 View Results
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Event Settings */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Event Settings</h2>
+        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8">
+          <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+            <Settings className="h-6 w-6" />
+            Event Settings
+          </h2>
+          
           <div className="space-y-4">
             <div>
-              <button
+              <Button
                 onClick={() => setShowDateModal(true)}
                 disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
-                className="w-full px-6 py-3 bg-christmas-gold-50 text-christmas-gold-700 rounded-xl font-semibold hover:bg-christmas-gold-100 transition-colors border-2 border-christmas-gold-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:border-gray-200"
+                variant="outline"
+                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <Calendar className="mr-2 h-5 w-5" />
                 📅 Extend Event Date
-              </button>
-              <p className="text-xs text-gray-500 mt-2">
+              </Button>
+              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
                 Change the gift exchange date (only if draw hasn't been run)
               </p>
             </div>
 
             <div>
-              <button
+              <Button
+                onClick={() => {
+                  setShowExpiryModal(true)
+                  setNewExpiryDays(event.expiryDays?.toString() || '7')
+                }}
+                disabled={isUpdating}
+                variant="outline"
+                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ToggleRight className="mr-2 h-5 w-5" />
+                Set Expiry Duration
+              </Button>
+              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
+                Current: {event.expiryDays || 7} days after event date
+              </p>
+            </div>
+
+            <div>
+              <Button
                 onClick={() => setShowCancelModal(true)}
                 disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
-                className="w-full px-6 py-3 bg-red-50 text-red-700 rounded-xl font-semibold hover:bg-red-100 transition-colors border-2 border-red-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed disabled:border-gray-200"
+                variant="outline"
+                className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
+                <X className="mr-2 h-5 w-5" />
                 ❌ Cancel Event
-              </button>
-              <p className="text-xs text-gray-500 mt-2">
+              </Button>
+              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
                 Cancel this event (only if draw hasn't been run)
               </p>
             </div>
@@ -518,85 +832,153 @@ export default function AdminPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="mt-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl">
+          <div className="mt-6 p-4 bg-destructive/20 border border-destructive/40 text-destructive rounded-xl font-body">
             {error}
           </div>
         )}
+      </main>
 
-        {/* Extend Date Modal */}
-        {showDateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
-              <h3 className="text-2xl font-bold text-christmas-red-600 mb-4">Extend Event Date</h3>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="newDate" className="block text-sm font-semibold text-gray-700 mb-2">
-                    New Exchange Date
-                  </label>
-                  <input
-                    id="newDate"
-                    type="date"
-                    value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-christmas-gold-500 focus:outline-none transition-colors"
-                    disabled={isUpdating}
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDateModal(false)
-                      setNewDate('')
-                    }}
-                    disabled={isUpdating}
-                    className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleExtendDate}
-                    disabled={isUpdating || !newDate}
-                    className="flex-1 px-6 py-3 bg-christmas-gold-500 text-white rounded-xl font-semibold hover:bg-christmas-gold-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {isUpdating ? 'Updating...' : 'Update Date'}
-                  </button>
-                </div>
+      {/* Extend Date Modal */}
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-gold/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
+            <h3 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+              <Calendar className="h-6 w-6" />
+              Extend Event Date
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="newDate" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  New Exchange Date
+                </label>
+                <input
+                  id="newDate"
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 bg-muted border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  disabled={isUpdating}
+                />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Cancel Event Modal */}
-        {showCancelModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-            <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
-              <h3 className="text-2xl font-bold text-christmas-red-600 mb-4">Cancel Event</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to cancel this event? This action cannot be undone. All
-                participants will be notified.
-              </p>
+              
               <div className="flex gap-3">
-                <button
-                  onClick={() => setShowCancelModal(false)}
+                <Button
+                  onClick={() => {
+                    setShowDateModal(false)
+                    setNewDate('')
+                  }}
                   disabled={isUpdating}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  variant="outline"
+                  className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
                 >
-                  Keep Event
-                </button>
-                <button
-                  onClick={handleCancelEvent}
-                  disabled={isUpdating}
-                  className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleExtendDate}
+                  disabled={isUpdating || !newDate}
+                  variant="hero"
+                  className="flex-1"
                 >
-                  {isUpdating ? 'Canceling...' : 'Cancel Event'}
-                </button>
+                  {isUpdating ? 'Updating...' : 'Update Date'}
+                </Button>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Cancel Event Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-destructive/30 rounded-3xl max-w-md w-full p-6 md:p-8">
+            <h3 className="font-display text-2xl text-destructive mb-4 flex items-center gap-2">
+              <X className="h-6 w-6" />
+              Cancel Event
+            </h3>
+            <p className="text-snow-white/70 mb-6 font-body">
+              Are you sure you want to cancel this event? This action cannot be undone. All
+              participants will be notified.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowCancelModal(false)}
+                disabled={isUpdating}
+                variant="outline"
+                className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
+              >
+                Keep Event
+              </Button>
+              <Button
+                onClick={handleCancelEvent}
+                disabled={isUpdating}
+                variant="destructive"
+                className="flex-1"
+              >
+                {isUpdating ? 'Canceling...' : 'Cancel Event'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expiry Duration Modal */}
+      {showExpiryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-gold/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
+            <h3 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
+              <ToggleRight className="h-6 w-6" />
+              Set Expiry Duration
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="expiryDays" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Days After Event Date
+                </label>
+                <input
+                  id="expiryDays"
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={newExpiryDays}
+                  onChange={(e) => setNewExpiryDays(e.target.value)}
+                  className="w-full px-4 py-3 bg-muted border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  disabled={isUpdating}
+                  placeholder="7"
+                />
+                <p className="text-xs text-snow-white/50 mt-2 font-body">
+                  The event will be marked as expired this many days after the event date.
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    setShowExpiryModal(false)
+                    setNewExpiryDays('')
+                  }}
+                  disabled={isUpdating}
+                  variant="outline"
+                  className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateExpiryDays}
+                  disabled={isUpdating || !newExpiryDays}
+                  variant="hero"
+                  className="flex-1"
+                >
+                  {isUpdating ? 'Updating...' : 'Update Expiry'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-

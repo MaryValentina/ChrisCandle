@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './styles/globals.css'
 import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext'
+import { initAnalytics } from './lib/analytics'
+
+// Initialize analytics
+initAnalytics()
 
 // Verify root element exists
 const rootElement = document.getElementById('root')

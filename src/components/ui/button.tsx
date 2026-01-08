@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'heroGlow' | 'heroOutlineGlow' | 'navGlow' | 'hero' | 'outline' | 'default';
+  variant?: 'heroGlow' | 'heroOutlineGlow' | 'navGlow' | 'hero' | 'outline' | 'default' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   asChild?: boolean;
   to?: string;
@@ -20,6 +20,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       hero: 'bg-gradient-to-r from-christmas-gold-400 to-christmas-gold-600 text-christmas-red-900 shadow-gold hover:shadow-gold-lg hover:scale-105',
       outline: 'border-2 border-gold/40 text-gold bg-transparent hover:bg-gold/10',
       default: 'bg-christmas-red-500 text-white hover:bg-christmas-red-600',
+      destructive: 'bg-destructive text-white hover:bg-destructive/90',
     };
     
     const sizes = {

@@ -21,7 +21,7 @@ export function getDaysSinceEventDate(eventDate: string | Date): number {
 
 /**
  * Check if an event should be expired
- * Events are expired if the event date has passed by more than 7 days
+ * Events are expired if the event date has passed by more than the expiry duration (default: 7 days)
  */
 export function shouldExpireEvent(event: Event): boolean {
   // Don't expire if already expired, completed, or drawn
@@ -29,8 +29,9 @@ export function shouldExpireEvent(event: Event): boolean {
     return false
   }
 
+  const expiryDays = event.expiryDays ?? 7 // Default to 7 days if not specified
   const daysSince = getDaysSinceEventDate(event.date)
-  return daysSince > 7
+  return daysSince > expiryDays
 }
 
 /**
@@ -69,10 +70,11 @@ export function getEventStatusMessage(event: Event): {
     }
   }
 
+  const expiryDays = event.expiryDays ?? 7
   const daysSince = getDaysSinceEventDate(event.date)
   const isPassed = isEventDatePassed(event.date)
 
-  if (daysSince > 7) {
+  if (daysSince > expiryDays) {
     return {
       message: `This event ended ${daysSince} days ago. It will be marked as expired.`,
       type: 'warning',
@@ -80,7 +82,7 @@ export function getEventStatusMessage(event: Event): {
     }
   }
 
-  if (isPassed && daysSince <= 7) {
+  if (isPassed && daysSince <= expiryDays) {
     return {
       message: `This event ended ${daysSince} day${daysSince !== 1 ? 's' : ''} ago.`,
       type: 'info',

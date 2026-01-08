@@ -275,3 +275,39 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-in;
 }
+
+/* Bulb blinking animation - bright then normal */
+@keyframes bulb-blink {
+  0%, 100% {
+    opacity: 0.8;
+    filter: brightness(1);
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.5);
+    text-shadow: 
+      0 0 10px rgba(255, 215, 0, 0.8),
+      0 0 20px rgba(255, 215, 0, 0.6),
+      0 0 30px rgba(255, 215, 0, 0.4);
+  }
+}
+
+@keyframes bulb-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-bulb-blink {
+  animation: bulb-blink 2s ease-in-out infinite;
+}
+
+.animate-bulb-glow {
+  animation: bulb-glow 2s ease-in-out infinite;
+}

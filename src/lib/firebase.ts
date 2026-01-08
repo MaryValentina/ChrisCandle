@@ -694,6 +694,39 @@ export async function updateEvent(
  * @returns Promise that resolves when participant is added
  * @throws Error if Firebase is not configured or operation fails
  */
+/**
+ * Find a participant by email in an event
+ * 
+ * @param eventId - The event document ID
+ * @param email - The email address to search for
+ * @returns Promise that resolves to the Participant if found, null otherwise
+ * @throws Error if Firebase is not configured
+ */
+export async function findParticipantByEmail(eventId: string, email: string): Promise<Participant | null> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    const event = await getEvent(eventId)
+    if (!event) {
+      return null
+    }
+
+    const normalizedEmail = email.toLowerCase().trim()
+    const participant = event.participants.find(
+      (p) => p.email?.toLowerCase().trim() === normalizedEmail
+    )
+
+    return participant || null
+  } catch (error) {
+    console.error('❌ Error finding participant by email:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to find participant: ${errorMessage}`)
+  }
+}
+
 export async function addParticipant(eventId: string, participant: ParticipantData): Promise<void> {
   try {
     const db = getDb()
@@ -705,6 +738,17 @@ export async function addParticipant(eventId: string, participant: ParticipantDa
     const event = await getEvent(eventId)
     if (!event) {
       throw new Error(`Event ${eventId} not found`)
+    }
+
+    // Check for duplicate email (case-insensitive)
+    if (participant.email) {
+      const normalizedEmail = participant.email.toLowerCase().trim()
+      const existingParticipant = event.participants.find(
+        (p) => p.email?.toLowerCase().trim() === normalizedEmail
+      )
+      if (existingParticipant) {
+        throw new Error('This email is already registered for this event. Please use a different email or re-enter with your existing email.')
+      }
     }
 
     // Add the new participant with timestamps
