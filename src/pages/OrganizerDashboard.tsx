@@ -279,6 +279,21 @@ const OrganizerDashboard = () => {
     );
   }
 
+  // Safety check: Don't show events grid until we've fetched at least once
+  // This prevents flashing empty grid during initial load
+  if (!hasFetchedOnce) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="text-center relative z-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+          <p className="text-snow-white">Loading your events...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Otherwise show events grid
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
