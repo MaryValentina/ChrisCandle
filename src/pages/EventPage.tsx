@@ -13,6 +13,9 @@ import ResultsCard from '../components/features/ResultsCard'
 import CountdownTimer from '../components/CountdownTimer'
 import { trackEvent, AnalyticsEvents } from '../lib/analytics'
 import { useAuth } from '../contexts/AuthContext'
+import Navbar from '../components/Navbar'
+import Snowflakes from '../components/Snowflakes'
+import { Button } from '../components/ui/button'
 import type { Participant, Event, Assignment } from '../types'
 
 export default function EventPage() {
@@ -349,10 +352,12 @@ export default function EventPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-christmas-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading event...</p>
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="text-center relative z-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+          <p className="text-snow-white">Loading event...</p>
         </div>
       </div>
     )
@@ -360,28 +365,32 @@ export default function EventPage() {
 
   if (error || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center max-w-md relative z-10">
           <div className="text-4xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
+          <h2 className="font-display text-2xl text-gold mb-4">
             {error || 'Event Not Found'}
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-snow-white/70 mb-6">
             {error || 'The event you\'re looking for doesn\'t exist.'}
           </p>
           <div className="flex gap-4 justify-center">
-            <button
+            <Button
               onClick={() => navigate('/join')}
-              className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+              variant="hero"
+              className="shadow-gold"
             >
               Try Another Code
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => navigate('/')}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+              variant="outline"
+              className="border-gold/30 text-gold hover:bg-gold/10"
             >
               Go Home
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -462,281 +471,300 @@ export default function EventPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/')}
-            className="text-christmas-red-600 hover:text-christmas-red-700 font-semibold mb-4"
-          >
-            ← Back to Home
-          </button>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
-                🎄 {event.name}
-              </h1>
-              <p className="text-gray-600">
-                Event Code: <span className="font-mono font-bold text-christmas-red-600">{event.code}</span>
-              </p>
-            </div>
-            {isOrganizer && (
-              <button
-                onClick={() => navigate(`/event/${code}/admin`)}
-                className="px-4 py-2 bg-christmas-red-500 text-white rounded-lg font-semibold hover:bg-christmas-red-600 transition-colors text-sm"
-              >
-                🔒 Admin
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Event Expired/Completed Banner */}
-        {(event.status === 'expired' || event.status === 'completed') && (
-          <div className={`mb-6 p-6 rounded-2xl border-2 ${
-            event.status === 'expired'
-              ? 'bg-red-50 border-red-200'
-              : 'bg-blue-50 border-blue-200'
-          }`}>
-            <div className="text-center">
-              <div className="text-5xl mb-4">
-                {event.status === 'expired' ? '⏰' : '✅'}
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <Snowflakes />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">🎄</div>
+      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      
+      <Navbar />
+      
+      <main className="container mx-auto px-4 pt-24 pb-16 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <Button
+              onClick={() => navigate('/')}
+              variant="ghost"
+              className="text-gold hover:text-gold-light mb-4"
+            >
+              ← Back to Home
+            </Button>
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h1 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
+                  🎄 {event.name}
+                </h1>
+                <p className="text-snow-white/70">
+                  Event Code: <span className="font-mono font-bold text-gold">{event.code}</span>
+                </p>
               </div>
-              <h2 className={`text-2xl font-bold mb-2 ${
-                event.status === 'expired'
-                  ? 'text-red-700'
-                  : 'text-blue-700'
-              }`}>
-                Event Completed
-              </h2>
-              <p className={`mb-4 ${
-                event.status === 'expired'
-                  ? 'text-red-600'
-                  : 'text-blue-600'
-              }`}>
-                {statusMessage?.message || 'This event has ended.'}
-              </p>
-              {statusMessage?.canRecreate && isOrganizer && (
-                <button
-                  onClick={() => setShowRecreateModal(true)}
-                  className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+              {isOrganizer && (
+                <Button
+                  onClick={() => navigate(`/event/${code}/admin`)}
+                  variant="hero"
+                  size="sm"
+                  className="shadow-gold"
                 >
-                  🎄 Recreate for Next Year
-                </button>
+                  🔒 Admin
+                </Button>
               )}
             </div>
           </div>
-        )}
 
-        {/* Event Status Message (for active events) */}
-        {event.status !== 'expired' && event.status !== 'completed' && statusMessage && (
-          <div className={`mb-6 p-4 rounded-xl border-2 ${
-            statusMessage.type === 'warning'
-              ? 'bg-yellow-50 border-yellow-200'
-              : 'bg-blue-50 border-blue-200'
-          }`}>
-            <p className={`text-center ${
-              statusMessage.type === 'warning'
-                ? 'text-yellow-700'
-                : 'text-blue-600'
+          {/* Event Expired/Completed Banner */}
+          {(event.status === 'expired' || event.status === 'completed') && (
+            <div className={`mb-6 p-6 rounded-2xl border-2 ${
+              event.status === 'expired'
+                ? 'bg-christmas-red-dark/40 border-red-400/30 backdrop-blur-sm'
+                : 'bg-christmas-red-dark/40 border-gold/30 backdrop-blur-sm'
             }`}>
-              {statusMessage.message}
-            </p>
-          </div>
-        )}
-
-        {/* Event Details */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Event Details</h2>
-          
-          {/* Countdown Timer */}
-          {event.status === 'active' && (
-            <div className="mb-6 p-4 bg-christmas-gold-50 rounded-xl">
-              <CountdownTimer eventDate={event.date} />
-            </div>
-          )}
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-christmas-red-50 rounded-xl">
-              <div className="text-sm text-gray-600 mb-1">📅 Exchange Date</div>
-              <div className="font-bold text-christmas-red-600">
-                {format(new Date(event.date), 'MMM d, yyyy')}
+              <div className="text-center">
+                <div className="text-5xl mb-4">
+                  {event.status === 'expired' ? '⏰' : '✅'}
+                </div>
+                <h2 className={`font-display text-2xl mb-2 ${
+                  event.status === 'expired'
+                    ? 'text-red-300'
+                    : 'text-gold'
+                }`}>
+                  Event Completed
+                </h2>
+                <p className={`mb-4 text-snow-white/70 ${
+                  event.status === 'expired'
+                    ? 'text-red-200'
+                    : 'text-gold/80'
+                }`}>
+                  {statusMessage?.message || 'This event has ended.'}
+                </p>
+                {statusMessage?.canRecreate && isOrganizer && (
+                  <Button
+                    onClick={() => setShowRecreateModal(true)}
+                    variant="hero"
+                    className="shadow-gold"
+                  >
+                    🎄 Recreate for Next Year
+                  </Button>
+                )}
               </div>
             </div>
-            {event.budget && (
-              <div className="p-4 bg-christmas-gold-50 rounded-xl">
-                <div className="text-sm text-gray-600 mb-1">💰 Budget</div>
-                <div className="font-bold text-christmas-gold-600">${event.budget}</div>
+          )}
+
+          {/* Event Status Message (for active events) */}
+          {event.status !== 'expired' && event.status !== 'completed' && statusMessage && (
+            <div className={`mb-6 p-4 rounded-xl border-2 backdrop-blur-sm ${
+              statusMessage.type === 'warning'
+                ? 'bg-gold/20 border-gold/40'
+                : 'bg-gold/10 border-gold/30'
+            }`}>
+              <p className={`text-center ${
+                statusMessage.type === 'warning'
+                  ? 'text-gold'
+                  : 'text-snow-white/90'
+              }`}>
+                {statusMessage.message}
+              </p>
+            </div>
+          )}
+
+          {/* Event Details */}
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+            <h2 className="font-display text-2xl text-gradient-gold mb-4">Event Details</h2>
+            
+            {/* Countdown Timer */}
+            {event.status === 'active' && (
+              <div className="mb-6 p-4 bg-gold/10 border border-gold/20 rounded-xl">
+                <CountdownTimer eventDate={event.date} />
               </div>
             )}
-            <div className="p-4 bg-christmas-green-50 rounded-xl">
-              <div className="text-sm text-gray-600 mb-1">👥 Participants</div>
-              <div className="font-bold text-christmas-green-600">{event.participants.length}</div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                <div className="text-sm text-snow-white/60 mb-1">📅 Exchange Date</div>
+                <div className="font-bold text-gold">
+                  {format(new Date(event.date), 'MMM d, yyyy')}
+                </div>
+              </div>
+              {event.budget && (
+                <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                  <div className="text-sm text-snow-white/60 mb-1">💰 Budget</div>
+                  <div className="font-bold text-gold">${event.budget}</div>
+                </div>
+              )}
+              <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                <div className="text-sm text-snow-white/60 mb-1">👥 Participants</div>
+                <div className="font-bold text-gold">{event.participants.length}</div>
+              </div>
             </div>
+            {event.description && (
+              <div className="mt-4 p-4 bg-christmas-red-dark/20 border border-gold/10 rounded-xl">
+                <p className="text-snow-white/80">{event.description}</p>
+              </div>
+            )}
           </div>
-          {event.description && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-              <p className="text-gray-700">{event.description}</p>
+
+          {/* Success Message */}
+          {joinSuccess && (
+            <div className="mb-6 p-4 bg-gold/20 border-2 border-gold/40 rounded-xl backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">✅</div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gold mb-1">You're In!</h3>
+                  <p className="text-sm text-snow-white/80">
+                    Check your email for confirmation. You've successfully joined this Secret Santa event.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Success Message */}
-        {joinSuccess && (
-          <div className="mb-6 p-4 bg-christmas-green-50 border-2 border-christmas-green-200 rounded-xl">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">✅</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-christmas-green-700 mb-1">You're In!</h3>
-                <p className="text-sm text-christmas-green-600">
-                  Check your email for confirmation. You've successfully joined this Secret Santa event.
+          {/* Join/Status Section - Disabled if event is expired */}
+          {event.status === 'expired' || event.status === 'completed' ? (
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+              <div className="text-center">
+                <div className="text-5xl mb-4">🔒</div>
+                <h2 className="font-display text-2xl text-gold mb-4">
+                  Event Closed
+                </h2>
+                <p className="text-snow-white/70 mb-6">
+                  This event is no longer accepting new participants.
                 </p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Join/Status Section - Disabled if event is expired */}
-        {event.status === 'expired' || event.status === 'completed' ? (
-          <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-            <div className="text-center">
-              <div className="text-5xl mb-4">🔒</div>
-              <h2 className="text-2xl font-bold text-gray-600 mb-4">
-                Event Closed
-              </h2>
-              <p className="text-gray-600 mb-6">
-                This event is no longer accepting new participants.
-              </p>
-            </div>
-          </div>
-        ) : !currentParticipant ? (
-          <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">
-                Join This Event
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Add your name, email, and wishlist to participate in this Secret Santa
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={() => setShowJoinModal(true)}
-                  className="px-8 py-4 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
-                >
-                  Join Event
-                </button>
-                <button
-                  onClick={() => setShowReEnterModal(true)}
-                  className="px-8 py-4 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas"
-                >
-                  Already Joined? Re-enter Email
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-            <div className="text-center">
-              <div className="text-5xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-christmas-green-600 mb-2">
-                You're In!
-              </h2>
-              <p className="text-gray-600 mb-6">
-                You've joined this Secret Santa event
-              </p>
-              {event.status !== 'drawn' && (
-                <div className="flex items-center justify-center gap-4 mb-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={currentParticipant.isReady}
-                      onChange={handleMarkReady}
-                      className="w-5 h-5 text-christmas-green-500 rounded focus:ring-christmas-green-500"
-                    />
-                    <span className="font-semibold text-gray-700">I'm ready for the draw</span>
-                  </label>
-                </div>
-              )}
-              {currentParticipant.wishlist && currentParticipant.wishlist.length > 0 && (
-                <div className="mt-6 p-4 bg-christmas-gold-50 rounded-xl">
-                  <h3 className="font-bold text-christmas-gold-600 mb-2">Your Wishlist:</h3>
-                  <ul className="list-disc list-inside text-left">
-                    {currentParticipant.wishlist.map((item, idx) => (
-                      <li key={idx} className="text-gray-700">{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Your Match Section - Only shown if event is drawn and participant has an assignment */}
-        {event.status === 'drawn' && currentParticipant && currentParticipantAssignment && currentParticipantMatch && (
-          <div className="mb-6">
-            {isLoadingAssignments ? (
-              <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-christmas-red-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading your match...</p>
-              </div>
-            ) : (
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-christmas-red-600 mb-4 text-center">
-                  🎁 Your Secret Santa Match
+          ) : !currentParticipant ? (
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+              <div className="text-center">
+                <h2 className="font-display text-2xl text-gradient-gold mb-4">
+                  Join This Event
                 </h2>
-                <ResultsCard
-                  assignment={currentParticipantAssignment}
-                  receiver={currentParticipantMatch}
-                  onSendMessage={() => setShowMessageModal(true)}
-                />
+                <p className="text-snow-white/70 mb-6">
+                  Add your name, email, and wishlist to participate in this Secret Santa
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button
+                    onClick={() => setShowJoinModal(true)}
+                    variant="hero"
+                    size="lg"
+                    className="shadow-gold-lg hover:scale-105 transition-transform"
+                  >
+                    Join Event
+                  </Button>
+                  <Button
+                    onClick={() => setShowReEnterModal(true)}
+                    variant="outline"
+                    size="lg"
+                    className="border-gold/30 text-gold hover:bg-gold/10"
+                  >
+                    Already Joined? Re-enter Email
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+              <div className="text-center">
+                <div className="text-5xl mb-4">🎉</div>
+                <h2 className="font-display text-2xl text-gradient-gold mb-2">
+                  You're In!
+                </h2>
+                <p className="text-snow-white/70 mb-6">
+                  You've joined this Secret Santa event
+                </p>
+                {event.status !== 'drawn' && (
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={currentParticipant.isReady}
+                        onChange={handleMarkReady}
+                        className="w-5 h-5 rounded border-gold/50 bg-christmas-red-deep/50 text-gold focus:ring-gold focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span className="font-semibold text-snow-white">I'm ready for the draw</span>
+                    </label>
+                  </div>
+                )}
+                {currentParticipant.wishlist && currentParticipant.wishlist.length > 0 && (
+                  <div className="mt-6 p-4 bg-gold/10 border border-gold/20 rounded-xl">
+                    <h3 className="font-bold text-gold mb-2">Your Wishlist:</h3>
+                    <ul className="list-disc list-inside text-left text-snow-white/80">
+                      {currentParticipant.wishlist.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Your Match Section - Only shown if event is drawn and participant has an assignment */}
+          {event.status === 'drawn' && currentParticipant && currentParticipantAssignment && currentParticipantMatch && (
+            <div className="mb-6">
+              {isLoadingAssignments ? (
+                <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+                  <p className="text-snow-white/70">Loading your match...</p>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="font-display text-3xl md:text-4xl text-gradient-gold mb-4 text-center">
+                    🎁 Your Secret Santa Match
+                  </h2>
+                  <ResultsCard
+                    assignment={currentParticipantAssignment}
+                    receiver={currentParticipantMatch}
+                    onSendMessage={() => setShowMessageModal(true)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Draw Status Message */}
+          {event.status === 'drawn' && currentParticipant && !currentParticipantAssignment && !isLoadingAssignments && (
+            <div className="mb-6 p-6 bg-gold/20 border-2 border-gold/40 rounded-xl text-center backdrop-blur-sm">
+              <div className="text-4xl mb-2">⏳</div>
+              <h3 className="font-bold text-gold mb-2">Draw Complete</h3>
+              <p className="text-snow-white/80">
+                The draw has been completed, but we couldn't find your assignment. Please contact the organizer.
+              </p>
+            </div>
+          )}
+
+          {/* Waiting for Draw Message */}
+          {event.status === 'active' && currentParticipant && (
+            <div className="mb-6 p-6 bg-gold/10 border-2 border-gold/30 rounded-xl text-center backdrop-blur-sm">
+              <div className="text-4xl mb-2">🎄</div>
+              <h3 className="font-bold text-gold mb-2">Waiting for Draw</h3>
+              <p className="text-snow-white/80">
+                The organizer will run the draw once everyone is ready. Check back soon!
+              </p>
+            </div>
+          )}
+
+          {/* Participants List */}
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8">
+            <h2 className="font-display text-2xl text-gradient-gold mb-4">
+              Participants ({event.participants.length})
+            </h2>
+            {event.participants.length === 0 ? (
+              <p className="text-snow-white/70">No participants yet. Be the first to join!</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {event.participants.map((participant) => (
+                  <ParticipantCard
+                    key={participant.id}
+                    participant={participant}
+                    showActions={false}
+                  />
+                ))}
               </div>
             )}
           </div>
-        )}
-
-        {/* Draw Status Message */}
-        {event.status === 'drawn' && currentParticipant && !currentParticipantAssignment && !isLoadingAssignments && (
-          <div className="mb-6 p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-center">
-            <div className="text-4xl mb-2">⏳</div>
-            <h3 className="font-bold text-yellow-700 mb-2">Draw Complete</h3>
-            <p className="text-yellow-600">
-              The draw has been completed, but we couldn't find your assignment. Please contact the organizer.
-            </p>
-          </div>
-        )}
-
-        {/* Waiting for Draw Message */}
-        {event.status === 'active' && currentParticipant && (
-          <div className="mb-6 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl text-center">
-            <div className="text-4xl mb-2">🎄</div>
-            <h3 className="font-bold text-blue-700 mb-2">Waiting for Draw</h3>
-            <p className="text-blue-600">
-              The organizer will run the draw once everyone is ready. Check back soon!
-            </p>
-          </div>
-        )}
-
-        {/* Participants List */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
-            Participants ({event.participants.length})
-          </h2>
-          {event.participants.length === 0 ? (
-            <p className="text-gray-600">No participants yet. Be the first to join!</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {event.participants.map((participant) => (
-                <ParticipantCard
-                  key={participant.id}
-                  participant={participant}
-                  showActions={false}
-                />
-              ))}
-            </div>
-          )}
         </div>
-      </div>
+      </main>
 
       {/* Join Event Modal */}
       <JoinEventModal
@@ -764,38 +792,40 @@ export default function EventPage() {
 
       {/* Recreate Event Modal */}
       {showRecreateModal && event && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
-            <h3 className="text-2xl font-bold text-christmas-red-600 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-gold/30 rounded-2xl shadow-gold-lg max-w-md w-full p-6 md:p-8">
+            <h3 className="font-display text-2xl text-gradient-gold mb-4">
               🎄 Recreate Event for Next Year
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-snow-white/80 mb-6">
               This will create a new event with the same details, but the date will be set to next year. 
               All participants will need to join again.
             </p>
-            <div className="bg-gray-50 p-4 rounded-xl mb-6">
-              <p className="text-sm text-gray-700">
-                <strong>Event Name:</strong> {event.name} {new Date(event.date).getFullYear() + 1}
+            <div className="bg-christmas-red-dark/50 border border-gold/20 p-4 rounded-xl mb-6">
+              <p className="text-sm text-snow-white/90">
+                <strong className="text-gold">Event Name:</strong> {event.name} {new Date(event.date).getFullYear() + 1}
               </p>
-              <p className="text-sm text-gray-700 mt-2">
-                <strong>New Date:</strong> {format(new Date(new Date(event.date).setFullYear(new Date(event.date).getFullYear() + 1)), 'MMMM d, yyyy')}
+              <p className="text-sm text-snow-white/90 mt-2">
+                <strong className="text-gold">New Date:</strong> {format(new Date(new Date(event.date).setFullYear(new Date(event.date).getFullYear() + 1)), 'MMMM d, yyyy')}
               </p>
             </div>
             <div className="flex gap-3">
-              <button
+              <Button
                 onClick={() => setShowRecreateModal(false)}
                 disabled={isRecreating}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                variant="outline"
+                className="flex-1 border-gold/30 text-gold hover:bg-gold/10"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleRecreateEvent}
                 disabled={isRecreating}
-                className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-semibold hover:bg-christmas-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                variant="hero"
+                className="flex-1 shadow-gold"
               >
                 {isRecreating ? 'Creating...' : 'Recreate Event'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -803,10 +833,10 @@ export default function EventPage() {
 
       {/* Anonymous Message Modal */}
       {showMessageModal && currentParticipantMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full p-6 md:p-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-gold/30 rounded-2xl shadow-gold-lg max-w-md w-full p-6 md:p-8">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-christmas-red-600">
+              <h3 className="font-display text-2xl text-gradient-gold">
                 💌 Send Anonymous Message
               </h3>
               <button
@@ -815,7 +845,7 @@ export default function EventPage() {
                   setMessageText('')
                 }}
                 disabled={isSendingMessage}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gold/60 hover:text-gold transition-colors"
               >
                 <svg
                   className="w-6 h-6"
@@ -833,14 +863,14 @@ export default function EventPage() {
               </button>
             </div>
 
-            <div className="mb-4 p-4 bg-christmas-gold-50 rounded-xl">
-              <p className="text-sm text-gray-600 mb-2">Sending to:</p>
-              <p className="font-bold text-christmas-gold-700">{currentParticipantMatch.name}</p>
+            <div className="mb-4 p-4 bg-gold/10 border border-gold/20 rounded-xl">
+              <p className="text-sm text-snow-white/60 mb-2">Sending to:</p>
+              <p className="font-bold text-gold">{currentParticipantMatch.name}</p>
             </div>
 
             <div className="mb-6">
-              <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
-                Your Message <span className="text-christmas-red-500">*</span>
+              <label htmlFor="message" className="block text-sm font-semibold text-snow-white mb-2">
+                Your Message <span className="text-gold">*</span>
               </label>
               <textarea
                 id="message"
@@ -848,39 +878,41 @@ export default function EventPage() {
                 onChange={(e) => setMessageText(e.target.value)}
                 rows={6}
                 placeholder="Write your anonymous message here..."
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-christmas-red-500 focus:outline-none transition-colors resize-none"
+                className="w-full px-4 py-3 border-2 border-gold/30 rounded-xl bg-christmas-red-dark/50 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:outline-none transition-colors resize-none"
                 disabled={isSendingMessage}
               />
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-snow-white/60">
                 Your name will not be revealed to the recipient.
               </p>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-400/50 text-red-200 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div className="flex gap-3">
-              <button
+              <Button
                 onClick={() => {
                   setShowMessageModal(false)
                   setMessageText('')
                   setError(null)
                 }}
                 disabled={isSendingMessage}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                variant="outline"
+                className="flex-1 border-gold/30 text-gold hover:bg-gold/10"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSendMessage}
                 disabled={isSendingMessage || !messageText.trim()}
-                className="flex-1 px-6 py-3 bg-christmas-red-500 text-white rounded-xl font-semibold hover:bg-christmas-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                variant="hero"
+                className="flex-1 shadow-gold"
               >
                 {isSendingMessage ? 'Sending...' : 'Send Message'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

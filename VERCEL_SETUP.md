@@ -20,7 +20,45 @@ Email functionality has been migrated from Firebase Cloud Functions to Vercel se
 2. Navigate to **Settings** → **Environment Variables**
 3. Add the following variables:
 
-### Required Variables
+### Firebase Configuration (Required)
+
+Your Firebase project ID is: `chriscandle-e8cbd`
+
+To get your Firebase config values:
+1. Go to [Firebase Console](https://console.firebase.google.com/project/chriscandle-e8cbd/settings/general)
+2. Click on the gear icon ⚙️ next to "Project Overview"
+3. Select "Project settings"
+4. Scroll down to "Your apps" section
+5. If you don't have a web app, click "Add app" → Web (</> icon)
+6. Copy the config values from the `firebaseConfig` object
+
+Add these environment variables in Vercel:
+
+- **`VITE_FIREBASE_API_KEY`**
+  - Value: Your Firebase API key (from Firebase Console)
+  - Environment: Production, Preview, Development (select all)
+
+- **`VITE_FIREBASE_AUTH_DOMAIN`**
+  - Value: `chriscandle-e8cbd.firebaseapp.com`
+  - Environment: Production, Preview, Development (select all)
+
+- **`VITE_FIREBASE_PROJECT_ID`**
+  - Value: `chriscandle-e8cbd`
+  - Environment: Production, Preview, Development (select all)
+
+- **`VITE_FIREBASE_STORAGE_BUCKET`** (Optional but recommended)
+  - Value: `chriscandle-e8cbd.appspot.com`
+  - Environment: Production, Preview, Development (select all)
+
+- **`VITE_FIREBASE_MESSAGING_SENDER_ID`** (Optional)
+  - Value: From Firebase Console
+  - Environment: Production, Preview, Development (select all)
+
+- **`VITE_FIREBASE_APP_ID`** (Optional)
+  - Value: From Firebase Console
+  - Environment: Production, Preview, Development (select all)
+
+### SendGrid Configuration (Required for Email)
 
 - **`SENDGRID_API_KEY`**
   - Value: Your SendGrid API key (e.g., `SG.xxxxxxxxxxxxx`)
@@ -91,6 +129,31 @@ The following email types are supported:
 - **Reminder Email**: Sent as event reminders
 
 ## Troubleshooting
+
+### Firebase Auth Not Configured
+
+If you see "Firebase Auth is not configured" error:
+
+1. **Verify Environment Variables in Vercel**:
+   - Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+   - Ensure all `VITE_FIREBASE_*` variables are set
+   - Make sure they're enabled for Production, Preview, and Development
+
+2. **Get Firebase Config Values**:
+   - Go to [Firebase Console](https://console.firebase.google.com/project/chriscandle-e8cbd/settings/general)
+   - Click ⚙️ → Project settings
+   - Scroll to "Your apps" section
+   - Click on your web app (or create one if it doesn't exist)
+   - Copy the config values from the `firebaseConfig` object
+
+3. **Redeploy After Adding Variables**:
+   - After adding environment variables, Vercel needs to redeploy
+   - Go to Deployments → Click "..." → Redeploy
+   - Or push a new commit to trigger automatic deployment
+
+4. **Check Variable Names**:
+   - All Firebase variables MUST start with `VITE_` prefix
+   - Example: `VITE_FIREBASE_API_KEY` (not `FIREBASE_API_KEY`)
 
 ### Emails Not Sending
 

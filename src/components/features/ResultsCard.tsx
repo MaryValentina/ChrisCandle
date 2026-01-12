@@ -55,10 +55,10 @@ export default function ResultsCard({
   }, [])
 
   return (
-    <div className="bg-gradient-to-br from-christmas-red-50 via-christmas-green-50 to-christmas-gold-50 rounded-2xl shadow-christmas-lg border-4 border-christmas-red-300 p-6 md:p-8 relative overflow-hidden">
+    <div className="bg-christmas-red-dark/50 backdrop-blur-sm rounded-2xl shadow-gold-lg border-4 border-gold/40 p-6 md:p-8 relative overflow-hidden">
       {/* Animated background decorations */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-christmas-red-200 rounded-full blur-3xl opacity-30 animate-pulse"></div>
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-christmas-green-200 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gold/20 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gold/20 rounded-full blur-3xl opacity-30 animate-pulse"></div>
 
       <div className="relative z-10 text-center">
         {/* Reveal Animation */}
@@ -69,15 +69,15 @@ export default function ResultsCard({
         >
           <div className="mb-6">
             <div className="text-6xl md:text-8xl mb-4 animate-bounce">🎁</div>
-            <h2 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
+            <h2 className="font-display text-3xl md:text-4xl text-gradient-gold mb-2">
               You got...
             </h2>
           </div>
 
           {/* Receiver Name */}
           <div className="mb-8">
-            <div className="inline-block px-8 py-4 bg-white rounded-2xl shadow-christmas-lg border-4 border-christmas-green-400 transform hover:scale-105 transition-transform">
-              <h3 className="text-4xl md:text-5xl font-bold text-christmas-green-600 mb-2">
+            <div className="inline-block px-8 py-4 bg-christmas-red-dark/60 backdrop-blur-md rounded-2xl shadow-gold-lg border-4 border-gold/60 transform hover:scale-105 transition-transform">
+              <h3 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
                 {receiver.name}!
               </h3>
               <div className="text-2xl">🎄</div>
@@ -86,15 +86,15 @@ export default function ResultsCard({
 
           {/* Contact Information */}
           {receiver.email && (
-            <div className="mb-6 p-4 bg-white rounded-xl shadow-md">
-              <div className="text-sm text-gray-600 mb-2 font-semibold">Contact Info:</div>
+            <div className="mb-6 p-4 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
+              <div className="text-sm text-snow-white/60 mb-2 font-semibold">Contact Info:</div>
               <div className="space-y-2">
                 {receiver.email && (
-                  <div className="flex items-center justify-center gap-2 text-christmas-red-600">
+                  <div className="flex items-center justify-center gap-2 text-gold">
                     <span>📧</span>
                     <a
                       href={`mailto:${receiver.email}`}
-                      className="hover:underline"
+                      className="hover:text-gold-light transition-colors"
                     >
                       {receiver.email}
                     </a>
@@ -106,8 +106,8 @@ export default function ResultsCard({
 
           {/* Wishlist */}
           {receiver.wishlist && receiver.wishlist.length > 0 && (
-            <div className="mb-6 p-6 bg-white rounded-xl shadow-md">
-              <h4 className="text-xl font-bold text-christmas-gold-600 mb-4 flex items-center justify-center gap-2">
+            <div className="mb-6 p-6 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
+              <h4 className="font-display text-xl text-gradient-gold mb-4 flex items-center justify-center gap-2">
                 <span>🎁</span>
                 <span>Wishlist</span>
               </h4>
@@ -115,7 +115,7 @@ export default function ResultsCard({
                 {receiver.wishlist.map((item, index) => (
                   <div
                     key={index}
-                    className="px-4 py-2 bg-christmas-gold-50 rounded-lg text-christmas-gold-700 font-medium"
+                    className="px-4 py-2 bg-gold/10 border border-gold/20 rounded-lg text-gold font-medium"
                   >
                     {item}
                   </div>
@@ -128,7 +128,7 @@ export default function ResultsCard({
           {onSendMessage && (
             <button
               onClick={onSendMessage}
-              className="w-full sm:w-auto px-8 py-4 bg-christmas-red-500 text-white rounded-xl font-bold text-lg hover:bg-christmas-red-600 transition-colors shadow-christmas-lg transform hover:scale-105"
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-gold-lg"
             >
               💌 Send Anonymous Message
             </button>
@@ -136,7 +136,7 @@ export default function ResultsCard({
 
           {/* Revealed timestamp */}
           {assignment.revealedAt && (
-            <div className="mt-6 text-sm text-gray-500">
+            <div className="mt-6 text-sm text-snow-white/60">
               Revealed on{' '}
               {new Date(assignment.revealedAt).toLocaleDateString('en-US', {
                 month: 'long',

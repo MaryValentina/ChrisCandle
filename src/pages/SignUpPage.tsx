@@ -46,7 +46,7 @@ export default function SignUpPage() {
     setIsLoading(true);
     try {
       await signup(formData.email, formData.password, formData.name);
-      navigate('/dashboard');
+      navigate('/my-events');
     } catch (err: any) {
       console.error('Signup error:', err);
       if (err.code === 'auth/email-already-in-use') {
@@ -84,13 +84,13 @@ export default function SignUpPage() {
         {/* Glowing background effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-gold/10 via-transparent to-gold/5 rounded-3xl blur-xl" />
         
-        <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl p-6 md:p-7 border border-gold/20 shadow-gold-lg">
+        <div className="relative bg-christmas-red-dark/60 backdrop-blur-xl rounded-3xl p-6 md:p-7 border border-gold/20 shadow-gold-lg">
           {/* Header */}
           <div className="text-center mb-5">
-            <h1 className="font-display text-2xl md:text-3xl font-bold text-christmas-red-900 mb-2">
+            <h1 className="font-display text-2xl md:text-3xl text-gradient-gold mb-2">
               Join the Magic
             </h1>
-            <p className="text-christmas-red-900/80 font-body text-xs">
+            <p className="text-snow-white/70 font-body text-xs">
               Create your account & join the celebration 🎄
             </p>
           </div>
@@ -98,13 +98,13 @@ export default function SignUpPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3">
             {error && (
-              <div className="p-4 bg-christmas-red-50 border-2 border-christmas-red-200 rounded-xl">
-                <p className="text-sm text-christmas-red-600">{error}</p>
+              <div className="p-4 bg-red-500/20 border-2 border-red-400/50 rounded-xl backdrop-blur-sm">
+                <p className="text-sm text-red-200">{error}</p>
               </div>
             )}
 
             <div className="space-y-1">
-              <Label htmlFor="name" className="text-christmas-red-900/90 font-body text-xs">
+              <Label htmlFor="name" className="text-snow-white font-body text-xs">
                 Your Name
               </Label>
               <Input
@@ -113,13 +113,13 @@ export default function SignUpPage() {
                 placeholder="Santa Claus"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-10 font-body transition-all duration-300"
+                className="bg-christmas-red-deep/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-snow-white placeholder:text-snow-white/40 rounded-xl h-10 font-body transition-all duration-300"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="email" className="text-christmas-red-900/90 font-body text-xs">
+              <Label htmlFor="email" className="text-snow-white font-body text-xs">
                 Email
               </Label>
               <Input
@@ -128,13 +128,13 @@ export default function SignUpPage() {
                 placeholder="santa@northpole.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-10 font-body transition-all duration-300"
+                className="bg-christmas-red-deep/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-snow-white placeholder:text-snow-white/40 rounded-xl h-10 font-body transition-all duration-300"
                 required
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="password" className="text-christmas-red-900/90 font-body text-xs">
+              <Label htmlFor="password" className="text-snow-white font-body text-xs">
                 Password
               </Label>
               <Input
@@ -143,14 +143,14 @@ export default function SignUpPage() {
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-10 font-body transition-all duration-300"
+                className="bg-christmas-red-deep/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-snow-white placeholder:text-snow-white/40 rounded-xl h-10 font-body transition-all duration-300"
                 required
                 minLength={6}
               />
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="confirmPassword" className="text-christmas-red-900/90 font-body text-xs">
+              <Label htmlFor="confirmPassword" className="text-snow-white font-body text-xs">
                 Confirm Password
               </Label>
               <Input
@@ -159,7 +159,7 @@ export default function SignUpPage() {
                 placeholder="••••••••"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="bg-white/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-christmas-red-900 placeholder:text-christmas-red-900/60 rounded-xl h-10 font-body transition-all duration-300"
+                className="bg-christmas-red-deep/50 border-gold/30 focus:border-gold focus:ring-gold/30 text-snow-white placeholder:text-snow-white/40 rounded-xl h-10 font-body transition-all duration-300"
                 required
                 minLength={6}
               />

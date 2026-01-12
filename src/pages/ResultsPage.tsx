@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getEventByCode, getAssignments } from '../lib/firebase'
 import ResultsCard from '../components/features/ResultsCard'
+import Navbar from '../components/Navbar'
+import Snowflakes from '../components/Snowflakes'
+import { Button } from '../components/ui/button'
 import type { Event, Assignment } from '../types'
 
 export default function ResultsPage() {
@@ -56,10 +59,12 @@ export default function ResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center">
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center relative z-10">
           <div className="text-4xl mb-4 animate-bounce">🎄</div>
-          <p className="text-xl font-semibold text-christmas-red-600">Loading assignments...</p>
+          <p className="text-xl font-semibold text-gold">Loading assignments...</p>
         </div>
       </div>
     )
@@ -67,16 +72,19 @@ export default function ResultsPage() {
 
   if (error || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">Error</h2>
-          <p className="text-gray-600 mb-6">{error || 'Event not found'}</p>
-          <button
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center max-w-md relative z-10">
+          <h2 className="font-display text-2xl text-gold mb-4">Error</h2>
+          <p className="text-snow-white/70 mb-6">{error || 'Event not found'}</p>
+          <Button
             onClick={() => navigate('/')}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+            variant="hero"
+            className="shadow-gold"
           >
             Go Home
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -84,120 +92,138 @@ export default function ResultsPage() {
 
   if (assignments.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8 text-center max-w-md">
-          <h2 className="text-2xl font-bold text-christmas-red-600 mb-4">
+      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+        <Snowflakes />
+        <Navbar />
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center max-w-md relative z-10">
+          <h2 className="font-display text-2xl text-gradient-gold mb-4">
             No Assignments Yet
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-snow-white/70 mb-6">
             Assignments haven't been generated yet. The organizer needs to run the draw first.
           </p>
-          <button
+          <Button
             onClick={() => navigate(`/event/${code}`)}
-            className="px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+            variant="hero"
+            className="shadow-gold"
           >
             Go to Event
-          </button>
+          </Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8 mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
-            🎉 Secret Santa Assignments
-          </h1>
-          <p className="text-gray-600 mb-8">
-            The moment of truth! Here are your Secret Santa pairings for{' '}
-            <span className="font-semibold">{event.name}</span>.
-          </p>
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <Snowflakes />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">🎄</div>
+      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      
+      <Navbar />
+      
+      <main className="container mx-auto px-4 pt-24 pb-16 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+            <h1 className="font-display text-3xl md:text-4xl text-gradient-gold mb-2">
+              🎉 Secret Santa Assignments
+            </h1>
+            <p className="text-snow-white/70 mb-8">
+              The moment of truth! Here are your Secret Santa pairings for{' '}
+              <span className="font-semibold text-gold">{event.name}</span>.
+            </p>
 
-          {/* All Assignments View */}
-          <div className="space-y-4 mb-8">
-            {assignments.map((assignment) => {
-              const giver = getParticipant(assignment.giverId)
-              const receiver = getParticipant(assignment.receiverId)
+            {/* All Assignments View */}
+            <div className="space-y-4 mb-8">
+              {assignments.map((assignment) => {
+                const giver = getParticipant(assignment.giverId)
+                const receiver = getParticipant(assignment.receiverId)
 
-              if (!giver || !receiver) return null
+                if (!giver || !receiver) return null
 
-              return (
-                <div
-                  key={assignment.giverId}
-                  className="p-6 bg-gradient-to-r from-christmas-red-50 to-christmas-green-50 rounded-xl border-2 border-christmas-red-200"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="text-lg font-bold text-christmas-red-600 mb-1">
-                        🎁 {giver.name}
+                return (
+                  <div
+                    key={assignment.giverId}
+                    className="p-6 bg-christmas-red-dark/30 border border-gold/20 rounded-xl backdrop-blur-sm"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="text-lg font-bold text-gold mb-1">
+                          🎁 {giver.name}
+                        </div>
+                        <div className="text-sm text-snow-white/60">is buying for</div>
                       </div>
-                      <div className="text-sm text-gray-600">is buying for</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">→</div>
-                      <div className="text-lg font-bold text-christmas-green-600">
-                        {receiver.name}
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl text-gold">→</div>
+                        <div className="text-lg font-bold text-gold">
+                          {receiver.name}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Individual Reveal Cards */}
+          <div className="mb-6">
+            <h2 className="font-display text-2xl text-gradient-gold mb-4 text-center">
+              Your Assignment
+            </h2>
+            <div className="space-y-6">
+              {assignments.map((assignment) => {
+                const receiver = getParticipant(assignment.receiverId)
+                if (!receiver) return null
+
+                return (
+                  <ResultsCard
+                    key={assignment.giverId}
+                    assignment={assignment}
+                    receiver={receiver}
+                    onSendMessage={() => {
+                      // TODO: Implement message functionality
+                      console.log('Send message to', receiver.name)
+                    }}
+                  />
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8">
+            <h2 className="font-display text-2xl text-gradient-gold mb-4">Actions</h2>
+            <p className="text-snow-white/70 mb-6">
+              Share the results or manage your event further.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button variant="hero" className="flex-1 shadow-gold">
+                Export Results
+              </Button>
+              <Link
+                to={`/event/${code}`}
+                className="flex-1"
+              >
+                <Button variant="outline" className="w-full border-gold/30 text-gold hover:bg-gold/10">
+                  Back to Event
+                </Button>
+              </Link>
+              <Link
+                to="/"
+                className="flex-1"
+              >
+                <Button variant="outline" className="w-full border-gold/30 text-gold hover:bg-gold/10">
+                  Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
-
-        {/* Individual Reveal Cards */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-christmas-gold-600 mb-4 text-center">
-            Your Assignment
-          </h2>
-          <div className="space-y-6">
-            {assignments.map((assignment) => {
-              const receiver = getParticipant(assignment.receiverId)
-              if (!receiver) return null
-
-              return (
-                <ResultsCard
-                  key={assignment.giverId}
-                  assignment={assignment}
-                  receiver={receiver}
-                  onSendMessage={() => {
-                    // TODO: Implement message functionality
-                    console.log('Send message to', receiver.name)
-                  }}
-                />
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-6 md:p-8">
-          <h2 className="text-2xl font-bold text-christmas-green-600 mb-4">Actions</h2>
-          <p className="text-gray-600 mb-6">
-            Share the results or manage your event further.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas">
-              Export Results
-            </button>
-            <Link
-              to={`/event/${code}`}
-              className="flex-1 px-6 py-3 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas text-center"
-            >
-              Back to Event
-            </Link>
-            <Link
-              to="/"
-              className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors text-center"
-            >
-              Home
-            </Link>
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

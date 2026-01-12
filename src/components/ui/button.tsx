@@ -14,11 +14,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
     
     const variants = {
-      heroGlow: 'bg-gradient-to-r from-christmas-gold-400 to-christmas-gold-600 text-christmas-red-900 shadow-[0_0_20px_rgba(245,158,11,0.5)] hover:shadow-[0_0_30px_rgba(245,158,11,0.7)] hover:scale-105',
-      heroOutlineGlow: 'border-2 border-christmas-gold-400 text-christmas-gold-300 bg-transparent hover:bg-christmas-gold-400/10 shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_rgba(245,158,11,0.5)]',
-      navGlow: 'bg-christmas-gold-500/20 border border-christmas-gold-400/50 text-christmas-gold-300 hover:bg-christmas-gold-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]',
-      hero: 'bg-gradient-to-r from-christmas-gold-400 to-christmas-gold-600 text-christmas-red-900 shadow-gold hover:shadow-gold-lg hover:scale-105',
-      outline: 'border-2 border-gold/40 text-gold bg-transparent hover:bg-gold/10',
+      heroGlow: 'bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep shadow-gold-lg hover:shadow-gold-lg hover:scale-105 transition-transform',
+      heroOutlineGlow: 'border-2 border-gold text-gold bg-transparent hover:bg-gold/10 shadow-gold hover:shadow-gold-lg',
+      navGlow: 'bg-gold/20 border border-gold/50 text-gold hover:bg-gold/30 shadow-gold',
+      hero: 'bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep shadow-gold hover:shadow-gold-lg hover:scale-105 transition-transform',
+      outline: 'border-2 border-gold/40 text-gold bg-transparent hover:bg-gold/10 hover:border-gold/60',
       default: 'bg-christmas-red-500 text-white hover:bg-christmas-red-600',
       destructive: 'bg-destructive text-white hover:bg-destructive/90',
     };

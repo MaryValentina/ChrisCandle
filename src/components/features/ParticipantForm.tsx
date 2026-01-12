@@ -69,17 +69,17 @@ export default function ParticipantForm({
   return (
     <form
       onSubmit={handleSubmit(onFormSubmit)}
-      className="bg-white rounded-xl shadow-christmas-lg border-2 border-christmas-green-200 p-6 md:p-8"
+      className="bg-christmas-red-dark/40 backdrop-blur-sm rounded-xl shadow-gold border border-gold/20 p-6 md:p-8"
     >
-      <h3 className="text-2xl font-bold text-christmas-red-600 mb-6">
+      <h3 className="font-display text-2xl text-gradient-gold mb-6">
         {initialData ? 'Edit Participant' : 'Add New Participant'}
       </h3>
 
       <div className="space-y-4">
         {/* Name Field */}
         <div>
-          <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-            Name <span className="text-christmas-red-500">*</span>
+          <label htmlFor="name" className="block text-sm font-semibold text-snow-white mb-2">
+            Name <span className="text-gold">*</span>
           </label>
           <input
             id="name"
@@ -91,21 +91,21 @@ export default function ParticipantForm({
                 message: 'Name must be at least 2 characters',
               },
             })}
-            className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+            className={`w-full px-4 py-3 border-2 rounded-xl bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:outline-none transition-colors ${
               errors.name
-                ? 'border-christmas-red-500'
-                : 'border-gray-300 focus:border-christmas-green-500'
+                ? 'border-red-400'
+                : 'border-gold/30 focus:border-gold'
             }`}
             placeholder="Enter participant name"
           />
           {errors.name && (
-            <p className="mt-1 text-sm text-christmas-red-600">{errors.name.message}</p>
+            <p className="mt-1 text-sm text-red-300">{errors.name.message}</p>
           )}
         </div>
 
         {/* Email Field */}
         <div>
-          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+          <label htmlFor="email" className="block text-sm font-semibold text-snow-white mb-2">
             Email
           </label>
           <input
@@ -117,21 +117,21 @@ export default function ParticipantForm({
                 message: 'Invalid email address',
               },
             })}
-            className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors ${
+            className={`w-full px-4 py-3 border-2 rounded-xl bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:outline-none transition-colors ${
               errors.email
-                ? 'border-christmas-red-500'
-                : 'border-gray-300 focus:border-christmas-green-500'
+                ? 'border-red-400'
+                : 'border-gold/30 focus:border-gold'
             }`}
             placeholder="email@example.com"
           />
           {errors.email && (
-            <p className="mt-1 text-sm text-christmas-red-600">{errors.email.message}</p>
+            <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
           )}
         </div>
 
         {/* Wishlist Field */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-snow-white mb-2">
             Wishlist Items
           </label>
           <div className="flex gap-2 mb-2">
@@ -145,13 +145,13 @@ export default function ParticipantForm({
                   addWishlistItem()
                 }
               }}
-              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-christmas-gold-500 focus:outline-none transition-colors"
+              className="flex-1 px-4 py-2 border-2 border-gold/30 rounded-lg bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:outline-none transition-colors"
               placeholder="Add wishlist item"
             />
             <button
               type="button"
               onClick={addWishlistItem}
-              className="px-4 py-2 bg-christmas-gold-500 text-white rounded-lg font-semibold hover:bg-christmas-gold-600 transition-colors"
+              className="px-4 py-2 bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep rounded-lg font-semibold hover:scale-105 transition-transform shadow-gold"
             >
               Add
             </button>
@@ -161,13 +161,13 @@ export default function ParticipantForm({
               {wishlistItems.map((item, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-2 px-3 py-1 bg-christmas-red-50 text-christmas-red-700 rounded-full text-sm"
+                  className="inline-flex items-center gap-2 px-3 py-1 bg-gold/20 border border-gold/30 text-gold rounded-full text-sm"
                 >
                   {item}
                   <button
                     type="button"
                     onClick={() => removeWishlistItem(index)}
-                    className="text-christmas-red-500 hover:text-christmas-red-700"
+                    className="text-gold hover:text-gold-light"
                   >
                     ×
                   </button>
@@ -185,17 +185,17 @@ export default function ParticipantForm({
             {...register('isReady')}
             className="w-5 h-5 text-christmas-green-500 rounded focus:ring-christmas-green-500"
           />
-          <label htmlFor="isReady" className="text-sm font-semibold text-gray-700">
+          <label htmlFor="isReady" className="text-sm font-semibold text-snow-white">
             Mark as ready
           </label>
         </div>
       </div>
 
       {/* Form Actions */}
-      <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
+      <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gold/20">
         <button
           type="submit"
-          className="flex-1 px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+          className="flex-1 px-6 py-3 bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep rounded-xl font-bold hover:scale-105 transition-transform shadow-gold"
         >
           {submitLabel}
         </button>
@@ -203,7 +203,7 @@ export default function ParticipantForm({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+            className="flex-1 px-6 py-3 border-2 border-gold/30 text-gold bg-transparent rounded-xl font-bold hover:bg-gold/10 transition-colors"
           >
             Cancel
           </button>

@@ -94,17 +94,19 @@ const Navbar = () => {
 
           {/* Right Side - Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {/* How It Works - Hide if already on the page */}
-            {location.pathname !== '/how-it-works' && (
-              <Link
-                to="/how-it-works"
-                onClick={() => setMobileMenuOpen(false)}
+            {/* How It Works - Only show on landing page */}
+            {location.pathname === '/' && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/how-it-works');
+                }}
                 className="font-body text-gold font-semibold animate-bulb-blink relative group px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105 cursor-pointer"
               >
                 <span className="relative z-10">How It Works</span>
                 {/* Glow effect that pulses like a bulb */}
                 <span className="absolute inset-0 bg-gold/20 rounded-lg blur-md -z-10 animate-bulb-glow" />
-              </Link>
+              </button>
             )}
             
             {currentUser && (
@@ -148,16 +150,18 @@ const Navbar = () => {
               {navLinks.map((link) => (
                 <NavLink key={link.name} link={link} />
               ))}
-              {/* How It Works in mobile menu - Hide if already on the page */}
-              {location.pathname !== '/how-it-works' && (
-                <Link
-                  to="/how-it-works"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="font-body text-gold font-semibold animate-bulb-blink relative group py-2 px-3 rounded-lg"
+              {/* How It Works in mobile menu - Only show on landing page */}
+              {location.pathname === '/' && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/how-it-works');
+                  }}
+                  className="font-body text-gold font-semibold animate-bulb-blink relative group py-2 px-3 rounded-lg text-left w-full"
                 >
                   <span className="relative z-10">How It Works</span>
                   <span className="absolute inset-0 bg-gold/20 rounded-lg blur-md -z-10 animate-bulb-glow" />
-                </Link>
+                </button>
               )}
             </div>
           </div>

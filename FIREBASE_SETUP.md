@@ -151,13 +151,9 @@ service cloud.firestore {
 }
 ```
 
-## Next Steps
-
-Once Firebase is configured:
+## Next StepsOnce Firebase is configured:
 - ✅ You can sign up and log in
 - ✅ Create events as an organizer
 - ✅ Participants can join events with codes
 - ✅ Run Secret Santa draws
-- ✅ View assignments and results
-
-Happy coding! 🎄
+- ✅ View assignments and resultsHappy coding! 🎄

@@ -324,6 +324,7 @@ export function convertFirestoreEvent(data: any, id: string): Event {
           email: p.email,
           wishlist: p.wishlist,
           isReady: p.isReady ?? false,
+          isOrganizer: p.isOrganizer ?? false,
           joinedAt: p.joinedAt ? fromFirestoreTimestamp(p.joinedAt) : (p.createdAt ? fromFirestoreTimestamp(p.createdAt) : new Date().toISOString()),
         }
       }),
@@ -388,7 +389,7 @@ function removeUndefined(obj: any): any {
  * @returns Promise that resolves to the created event ID
  * @throws Error if Firebase is not configured or creation fails
  */
-export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Promise<string> {
+export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organizerEmail?: string, organizerName?: string, addOrganizerAsParticipant: boolean = true): Promise<string> {
   try {
     const db = getDb()
     if (!db) {
@@ -405,12 +406,46 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Prom
       }
       return code
     }
+
+    // Add organizer as participant only if requested
+    let allParticipants = [...eventData.participants]
+    
+    if (addOrganizerAsParticipant) {
+      // Get organizer info from auth if not provided
+      let organizerEmailFinal = organizerEmail
+      let organizerNameFinal = organizerName
+      if (!organizerEmailFinal || !organizerNameFinal) {
+        const auth = getAuthInstance()
+        if (auth && auth.currentUser) {
+          organizerEmailFinal = organizerEmailFinal || auth.currentUser.email || undefined
+          organizerNameFinal = organizerNameFinal || auth.currentUser.displayName || undefined
+        }
+      }
+
+      // Generate organizer participant ID
+      const { v4: uuidv4 } = await import('uuid')
+      const organizerParticipantId = uuidv4()
+
+      // Create organizer participant
+      const organizerParticipant: Participant = {
+        id: organizerParticipantId,
+        eventId: '', // Will be set after event creation
+        name: organizerNameFinal || 'Organizer',
+        email: organizerEmailFinal,
+        isReady: true,
+        isOrganizer: true,
+        joinedAt: now,
+      }
+
+      // Add organizer as first participant
+      allParticipants = [organizerParticipant, ...eventData.participants]
+    }
     
     const eventDoc: Omit<EventData, 'id'> = {
       ...eventData,
       code: eventData.code || generateCode(),
       date: typeof eventData.date === 'string' ? eventData.date : eventData.date.toISOString(),
-      participants: eventData.participants.map(p => {
+      participants: allParticipants.map(p => {
         const participant: any = {
           id: p.id,
           eventId: '', // Will be set after event creation
@@ -421,6 +456,7 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Prom
         // Only include optional fields if they have values
         if (p.email) participant.email = p.email
         if (p.wishlist && p.wishlist.length > 0) participant.wishlist = p.wishlist
+        if (p.isOrganizer) participant.isOrganizer = p.isOrganizer
         return participant
       }),
       createdAt: now,
@@ -445,6 +481,7 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Prom
         // Only include optional fields if they have values
         if (p.email) participant.email = p.email
         if (p.wishlist && p.wishlist.length > 0) participant.wishlist = p.wishlist
+        if (p.isOrganizer) participant.isOrganizer = p.isOrganizer
         return participant
       }),
     }
@@ -496,6 +533,7 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>): Prom
         }
         if (p.email) participant.email = p.email
         if (p.wishlist && p.wishlist.length > 0) participant.wishlist = p.wishlist
+        if (p.isOrganizer) participant.isOrganizer = p.isOrganizer
         return participant
       })
       await updateDoc(docRef, { participants: participantsUpdate })
@@ -669,6 +707,7 @@ export async function updateEvent(
         // Only include optional fields if they have values
         if (p.email) participant.email = p.email
         if (p.wishlist && p.wishlist.length > 0) participant.wishlist = p.wishlist
+        if (p.isOrganizer) participant.isOrganizer = p.isOrganizer
         return participant
       })
     }

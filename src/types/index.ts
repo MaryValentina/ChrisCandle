@@ -88,6 +88,8 @@ export interface Participant {
   wishlist?: string[]
   /** Whether the participant has confirmed they're ready */
   isReady?: boolean
+  /** Whether this participant is the event organizer */
+  isOrganizer?: boolean
   /** When the participant joined the event (Firestore timestamp) */
   joinedAt: FirestoreDate
   /** Optional: ID of the assignment where this participant is the giver (references Assignment.id) */

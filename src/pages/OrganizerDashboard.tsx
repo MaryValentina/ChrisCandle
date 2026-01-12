@@ -17,6 +17,7 @@ const OrganizerDashboard = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isReady, setIsReady] = useState(false); // Single state: true only when fully loaded
   const [error, setError] = useState<string | null>(null);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const fetchInProgressRef = useRef(false);
   // Commented out - empty state UI temporarily disabled
   // const [showInput, setShowInput] = useState(false);
@@ -37,11 +38,13 @@ const OrganizerDashboard = () => {
       return;
     }
     
-    // Reset events and ready state when organizerId changes or on mount
-    if (!organizerId) {
+    // Only set error if auth is done and there's no organizerId
+    // Don't set error prematurely while auth is loading
+    if (!organizerId && !authLoading) {
       setEvents([]);
       setError('Please sign in to view your events');
       setIsReady(true);
+      setHasFetchedOnce(true); // Mark as fetched so error state can show
       fetchInProgressRef.current = false;
       return;
     }
@@ -55,7 +58,7 @@ const OrganizerDashboard = () => {
     setError(null);
     setIsReady(false); // Set loading state
     fetchInProgressRef.current = true;
-    fetchEvents(organizerId);
+    fetchEvents(organizerId!);
   }, [organizerId, authLoading]);
 
   // Debug: Log when events state changes
@@ -197,12 +200,14 @@ const OrganizerDashboard = () => {
       // React 18 will batch these in the same render cycle
       setEvents(fetchedEvents);
       setIsReady(true); // Only set ready AFTER events are set
+      setHasFetchedOnce(true); // Mark that we've completed at least one fetch
       console.log('✅ Events state updated, isReady set to true');
     } catch (err) {
       console.error('❌ Error fetching events:', err);
       fetchInProgressRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to load events');
       setIsReady(true); // Set ready even on error so we can show error state
+      setHasFetchedOnce(true); // Mark that we've completed at least one fetch attempt
     }
   };
 
@@ -221,7 +226,8 @@ const OrganizerDashboard = () => {
     );
   }
 
-  if (error) {
+  // Only show error state after at least one fetch attempt has completed
+  if (error && hasFetchedOnce) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-christmas-red-600 via-christmas-red-800 to-christmas-red-900 relative overflow-hidden flex items-center justify-center">
         <Snowflakes />
@@ -240,6 +246,40 @@ const OrganizerDashboard = () => {
     );
   }
 
+  // Show empty state only AFTER fetch completes and events are truly empty
+  if (events.length === 0 && hasFetchedOnce) {
+    return (
+      <div className="min-h-screen bg-background relative overflow-hidden">
+        <Snowflakes />
+        <Navbar />
+        <main className="container mx-auto px-4 pt-24 pb-16 relative z-10">
+          <div className="max-w-2xl mx-auto mt-12">
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center">
+              <Gift className="h-24 w-24 text-gold mx-auto animate-float mb-6" />
+              <h2 className="font-display text-3xl text-gradient-gold mb-3">
+                No Events Yet
+              </h2>
+              <p className="text-snow-white/70 mb-8 text-lg">
+                Create your first Secret Santa event to spread the holiday cheer!
+              </p>
+              <Link to="/create-event">
+                <Button
+                  variant="hero"
+                  size="lg"
+                  className="shadow-gold-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto"
+                >
+                  <Plus className="h-5 w-5" />
+                  Create Your First Event
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Otherwise show events grid
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <Snowflakes />
@@ -279,247 +319,70 @@ const OrganizerDashboard = () => {
           </Link>
         </div>
 
-        {/* Empty State */}
-        {events.length === 0 && (
-          <div className="max-w-2xl mx-auto mt-12">
-            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center">
-              <div className="relative inline-block mb-6">
-                <Gift className="h-24 w-24 text-gold mx-auto animate-float" />
-              </div>
-              
-              <h2 className="font-display text-3xl text-gradient-gold mb-3">
-                No Events Yet
-              </h2>
-              <p className="text-snow-white/70 mb-8 text-lg">
-                Create your first Secret Santa event to spread the holiday cheer!
-              </p>
-              
-              <Link to="/create-event">
-                <Button 
-                  variant="hero" 
-                  size="lg"
-                  className="shadow-gold-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="h-5 w-5" />
-                  Create Your First Event
-                </Button>
-              </Link>
-            </div>
-          </div>
-        )}
-
         {/* Events Grid */}
-        {events.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
-              <Link
-                key={event.id}
-                to={`/event/${event.code}/admin`}
-                className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 hover:shadow-gold transition-all duration-300 group cursor-pointer flex flex-col"
-              >
-                {/* Event Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="font-display text-xl md:text-2xl text-gold group-hover:text-gold-light transition-colors flex-1 pr-2">
-                    {event.name}
-                  </h3>
-                  <span className="text-2xl group-hover:animate-float flex-shrink-0">🎁</span>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map((event) => (
+            <Link
+              key={event.id}
+              to={`/event/${event.code}/admin`}
+              className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 hover:shadow-gold transition-all duration-300 group cursor-pointer flex flex-col"
+            >
+              {/* Event Header */}
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="font-display text-xl md:text-2xl text-gold group-hover:text-gold-light transition-colors flex-1 pr-2">
+                  {event.name}
+                </h3>
+                <span className="text-2xl group-hover:animate-float flex-shrink-0">🎁</span>
+              </div>
 
-                {/* Event Details */}
-                <div className="space-y-3 text-snow-white/80 text-sm mb-4 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gold flex-shrink-0" />
-                    <span className="font-medium">{format(new Date(event.date), 'MMM d, yyyy')}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gold flex-shrink-0" />
-                    <span>
-                      <span className="font-semibold text-gold">{event.participants.length}</span>
-                      {' '}participant{event.participants.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  
-                  {event.budget && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-gold">💰</span>
-                      <span>Budget: <span className="font-semibold">${event.budget}</span></span>
-                    </div>
-                  )}
-                  
-                  {/* Event Code */}
-                  <div className="pt-3 border-t border-gold/20 mt-3">
-                    <div className="flex items-center gap-2">
-                      <Copy className="h-3 w-3 text-gold/70 flex-shrink-0" />
-                      <span className="font-mono text-xs text-gold/90">Code: {event.code}</span>
-                    </div>
-                  </div>
+              {/* Event Details */}
+              <div className="space-y-3 text-snow-white/80 text-sm mb-4 flex-1">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gold flex-shrink-0" />
+                  <span className="font-medium">{format(new Date(event.date), 'MMM d, yyyy')}</span>
                 </div>
-
-                {/* Status Badge */}
-                <div className="mt-auto pt-4 border-t border-gold/20">
-                  <span className={`inline-block text-xs font-semibold px-3 py-1.5 rounded-full ${
-                    event.status === 'active'
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                      : event.status === 'drawn'
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                      : event.status === 'completed'
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                      : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
-                  }`}>
-                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-gold flex-shrink-0" />
+                  <span>
+                    <span className="font-semibold text-gold">{event.participants.length}</span>
+                    {' '}participant{event.participants.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-              </Link>
-            ))}
-          </div>
-        ) : null}
-        
-        {/* Empty State - Commented out for now */}
-        {/* {events.length === 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="bg-christmas-red-dark/30 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center flex flex-col">
-              <div className="relative inline-block mb-6">
-                <Gift className="h-20 w-20 text-gold mx-auto animate-float" />
-              </div>
-              
-              <h2 className="font-display text-3xl text-gold mb-3">
-                No Events Yet
-              </h2>
-              <p className="text-snow-white/70 mb-8">
-                Create your first Secret Santa event to spread the holiday cheer!
-              </p>
-              
-              <div className="mt-auto">
-                <Link to="/create-event">
-                  <Button 
-                    variant="hero" 
-                    size="lg"
-                    className="shadow-gold-lg hover:scale-105 transition-transform w-full"
-                  >
-                    Create Your First Event
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            <div className="bg-christmas-red-dark/30 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center flex flex-col">
-              <div className="relative inline-block mb-6">
-                <Key className="h-20 w-20 text-gold mx-auto animate-float" />
-              </div>
-              
-              <h2 className="font-display text-3xl text-gold mb-3">
-                Access Your Event
-              </h2>
-              <p className="text-snow-white/70 mb-8">
-                Enter your event code to access it
-              </p>
-              
-              <div className="mt-auto space-y-3">
-                <div className="relative overflow-hidden rounded-full">
-                  {!showInput ? (
-                    <button
-                      onClick={handleButtonClick}
-                      className="relative w-full h-14 bg-gradient-to-r from-gold to-gold-light text-christmas-red-900 font-body font-semibold rounded-full flex items-center justify-center transition-all duration-300 shadow-gold-lg hover:scale-105 cursor-pointer"
-                    >
-                      Access Event
-                    </button>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="enter your code"
-                          value={eventCode}
-                          onChange={(e) => setEventCode(e.target.value.toUpperCase())}
-                          onKeyPress={handleKeyPress}
-                          className="w-full h-14 bg-transparent border-2 rounded-full text-center font-mono text-lg text-snow-white/40 placeholder:text-snow-white/30 focus:outline-none focus:border-gold/50 transition-all duration-300 pr-10"
-                          style={{
-                            borderImage: isValidCode 
-                              ? 'conic-gradient(from 0deg, #f59e0b, #fbbf24, #f59e0b, #fbbf24, #f59e0b) 1'
-                              : undefined,
-                            borderColor: isValidCode ? 'transparent' : 'rgba(245, 158, 11, 0.3)',
-                          }}
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => {
-                            setShowInput(false);
-                            setEventCode('');
-                            setIsValidCode(false);
-                            setSwipeProgress(0);
-                          }}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-snow-white/60 hover:text-snow-white transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                        {isValidating && (
-                          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gold"></div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {isValidCode && (
-                        <div className="relative w-full h-14 rounded-full p-[2px] overflow-hidden" style={{
-                          background: 'conic-gradient(from 0deg, #f59e0b, #fbbf24, #f59e0b, #fbbf24, #f59e0b)',
-                          animation: 'spin 3s linear infinite',
-                        }}>
-                          <button
-                            ref={buttonRef}
-                            onTouchStart={handleSwipeStart}
-                            onTouchMove={handleSwipeMove}
-                            onTouchEnd={handleSwipeEnd}
-                            onMouseDown={handleSwipeStart}
-                            onMouseMove={handleSwipeMove}
-                            onMouseUp={handleSwipeEnd}
-                            onMouseLeave={handleSwipeEnd}
-                            onClick={() => {
-                              if (eventCode.trim()) {
-                                navigate(`/event/${eventCode.trim().toUpperCase()}`);
-                              }
-                            }}
-                            className="relative w-full h-full rounded-full flex items-center justify-center overflow-hidden cursor-pointer transition-all duration-300 group bg-christmas-red-dark/90"
-                          >
-                            <span className="relative z-10 flex items-center gap-2 text-gold font-body font-semibold">
-                              {swipeProgress < 80 ? (
-                                <>
-                                  Access Event
-                                  <ArrowRight className="w-5 h-5 transition-transform" style={{ transform: `translateX(${swipeProgress * 0.3}px)` }} />
-                                </>
-                              ) : (
-                                <>
-                                  Release to Go!
-                                  <ArrowRight className="w-5 h-5 animate-pulse" />
-                                </>
-                              )}
-                            </span>
-                            
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md" />
-                            
-                            {swipeProgress > 0 && (
-                              <div
-                                className="absolute inset-0 bg-gradient-to-r from-christmas-red-500/80 to-christmas-red-600/80 transition-all duration-300 rounded-full"
-                                style={{ width: `${swipeProgress}%` }}
-                              />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                {showInput && isValidCode && swipeProgress > 0 && swipeProgress < 100 && (
-                  <p className="text-xs text-snow-white/60 text-center">
-                    {swipeProgress < 80
-                      ? `Swipe right → (${Math.round(swipeProgress)}%)`
-                      : 'Release to access event!'}
-                  </p>
+                
+                {event.budget && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gold">💰</span>
+                    <span>Budget: <span className="font-semibold">${event.budget}</span></span>
+                  </div>
                 )}
+                
+                {/* Event Code */}
+                <div className="pt-3 border-t border-gold/20 mt-3">
+                  <div className="flex items-center gap-2">
+                    <Copy className="h-3 w-3 text-gold/70 flex-shrink-0" />
+                    <span className="font-mono text-xs text-gold/90">Code: {event.code}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )} */}
+
+              {/* Status Badge */}
+              <div className="mt-auto pt-4 border-t border-gold/20">
+                <span className={`inline-block text-xs font-semibold px-3 py-1.5 rounded-full ${
+                  event.status === 'active'
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                    : event.status === 'drawn'
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    : event.status === 'completed'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                    : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                }`}>
+                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
       </main>
     </div>
   );

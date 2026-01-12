@@ -13,7 +13,7 @@ import type { EventData } from '../types';
 
 const CreateEventPage = () => {
   const navigate = useNavigate();
-  const { organizerId } = useAuth();
+  const { organizerId, organizerName, currentUser } = useAuth();
   const [step, setStep] = useState(1);
   const [eventCode, setEventCode] = useState('');
   const [copied, setCopied] = useState(false);
@@ -26,6 +26,7 @@ const CreateEventPage = () => {
     budget: '',
     description: '',
   });
+  const [joinAsParticipant, setJoinAsParticipant] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,11 +63,25 @@ const CreateEventPage = () => {
         status: 'active' as const,
       };
 
-      // Save to Firebase
-      await createFirebaseEvent(eventData);
+      // Save to Firebase (organizer will be added as participant if they opted in)
+      if (joinAsParticipant) {
+        await createFirebaseEvent(
+          eventData,
+          currentUser?.email || undefined,
+          organizerName || currentUser?.displayName || undefined,
+          true
+        );
+      } else {
+        await createFirebaseEvent(eventData, undefined, undefined, false);
+      }
       
       setEventCode(code);
       setStep(2);
+      
+      // Auto-redirect to /my-events after 3 seconds
+      setTimeout(() => {
+        navigate('/my-events');
+      }, 3000);
     } catch (error) {
       console.error('Error creating event:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to create event. Please try again.');
@@ -209,6 +224,25 @@ const CreateEventPage = () => {
                       rows={4}
                       className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none"
                     />
+                  </div>
+
+                  {/* Join as Participant Checkbox */}
+                  <div className="flex items-start gap-3 p-4 bg-christmas-red-dark/30 border border-gold/20 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="joinAsParticipant"
+                      checked={joinAsParticipant}
+                      onChange={(e) => setJoinAsParticipant(e.target.checked)}
+                      className="mt-1 w-5 h-5 rounded border-gold/50 bg-christmas-red-deep/50 text-gold focus:ring-gold focus:ring-offset-0 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="joinAsParticipant" className="text-snow-white cursor-pointer font-medium">
+                        Join as a participant
+                      </Label>
+                      <p className="text-snow-white/60 text-sm mt-1">
+                        You'll be automatically added to the participant list and can receive a Secret Santa match
+                      </p>
+                    </div>
                   </div>
 
                   <Button 

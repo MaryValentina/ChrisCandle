@@ -1,5 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Navbar from '../components/Navbar'
+import Snowflakes from '../components/Snowflakes'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
 
 export default function JoinPage() {
   const navigate = useNavigate()
@@ -23,57 +28,71 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-christmas-red-50 to-christmas-green-50 p-4 md:p-8 flex items-center justify-center">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-christmas-lg p-8">
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+      <Snowflakes />
+      
+      {/* Decorative elements */}
+      <div className="absolute top-10 left-10 text-6xl opacity-20 animate-float">🎄</div>
+      <div className="absolute bottom-20 right-10 text-5xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>🎁</div>
+      
+      <Navbar />
+      
+      <div className="relative z-10 w-full max-w-md mx-4">
+        {/* Glowing background effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-gold/10 via-transparent to-gold/5 rounded-3xl blur-xl" />
+        
+        <div className="relative bg-christmas-red-dark/60 backdrop-blur-xl rounded-3xl p-8 border border-gold/20 shadow-gold-lg">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-christmas-red-600 mb-2">
+            <h1 className="font-display text-3xl md:text-4xl text-gradient-gold mb-2">
               🎄 Join Secret Santa
             </h1>
-            <p className="text-gray-600">
+            <p className="text-snow-white/70">
               Enter the event code you received from your organizer
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="code" className="block text-sm font-semibold text-gray-700 mb-2">
-                Event Code <span className="text-christmas-red-500">*</span>
-              </label>
-              <input
+              <Label htmlFor="code" className="block text-sm font-semibold text-snow-white mb-2">
+                Event Code <span className="text-gold">*</span>
+              </Label>
+              <Input
                 id="code"
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="ABC123"
                 maxLength={10}
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors text-center text-2xl font-bold tracking-widest ${
+                className={`w-full text-center text-2xl font-bold tracking-widest ${
                   error
-                    ? 'border-christmas-red-500'
-                    : 'border-gray-300 focus:border-christmas-green-500'
+                    ? 'border-red-400'
+                    : 'border-gold/30 focus:border-gold'
                 }`}
                 autoFocus
               />
               {error && (
-                <p className="mt-2 text-sm text-christmas-red-600">{error}</p>
+                <p className="mt-2 text-sm text-red-300">{error}</p>
               )}
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="w-full px-6 py-3 bg-christmas-green-500 text-white rounded-xl font-bold hover:bg-christmas-green-600 transition-colors shadow-christmas"
+              variant="hero"
+              size="lg"
+              className="w-full shadow-gold-lg hover:scale-105 transition-transform"
             >
               Join Event →
-            </button>
+            </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <button
+            <Button
               onClick={() => navigate('/')}
-              className="text-sm text-gray-600 hover:text-christmas-red-600 transition-colors"
+              variant="ghost"
+              className="text-gold hover:text-gold-light"
             >
               ← Back to Home
-            </button>
+            </Button>
           </div>
         </div>
       </div>

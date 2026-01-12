@@ -653,7 +653,15 @@ export default function AdminPage() {
                   className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-gold/20"
                 >
                   <div className="flex-1">
-                    <div className="font-semibold text-snow-white font-body">{participant.name}</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-semibold text-snow-white font-body">{participant.name}</div>
+                      {participant.isOrganizer && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-christmas-gold-100 to-christmas-gold-200 text-christmas-gold-800 rounded-full text-xs font-semibold border border-christmas-gold-400">
+                          <span className="text-xs">👑</span>
+                          Organizer
+                        </span>
+                      )}
+                    </div>
                     {participant.email ? (
                       <div className="text-sm text-snow-white/60 mt-1 flex items-center gap-2 font-body">
                         <Mail className="h-3 w-3" />

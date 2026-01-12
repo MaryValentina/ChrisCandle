@@ -28,17 +28,17 @@ export default function ReEnterEmailModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-2xl shadow-christmas-lg max-w-md w-full">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-gold/30 rounded-2xl shadow-gold-lg max-w-md w-full">
         <div className="p-6 md:p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-christmas-red-600">
+            <h2 className="font-display text-2xl md:text-3xl text-gradient-gold">
               🔑 Re-enter Your Email
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gold/60 hover:text-gold transition-colors"
               disabled={isSubmitting}
               aria-label="Close modal"
             >
@@ -58,15 +58,15 @@ export default function ReEnterEmailModal({
             </button>
           </div>
 
-          <p className="text-gray-600 mb-6">
+          <p className="text-snow-white/70 mb-6">
             Enter the email address you used to join this event to access your participant card.
           </p>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address <span className="text-christmas-red-500">*</span>
+              <label htmlFor="email" className="block text-sm font-semibold text-snow-white mb-2">
+                Email Address <span className="text-gold">*</span>
               </label>
               <input
                 id="email"
@@ -74,7 +74,7 @@ export default function ReEnterEmailModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-christmas-red-500 focus:outline-none transition-colors"
+                className="w-full px-4 py-3 border-2 border-gold/30 rounded-xl bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:outline-none transition-colors"
                 disabled={isSubmitting}
                 autoFocus
                 required
@@ -85,8 +85,8 @@ export default function ReEnterEmailModal({
 
             {/* Error message */}
             {error && (
-              <div className="p-4 bg-christmas-red-50 border-2 border-christmas-red-200 rounded-xl" role="alert">
-                <p className="text-sm text-christmas-red-600">{error}</p>
+              <div className="p-4 bg-red-500/20 border-2 border-red-400/50 rounded-xl backdrop-blur-sm" role="alert">
+                <p className="text-sm text-red-200">{error}</p>
               </div>
             )}
 
@@ -95,14 +95,14 @@ export default function ReEnterEmailModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 border-2 border-gold/30 text-gold bg-transparent rounded-xl font-bold hover:bg-gold/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !email.trim()}
-                className="flex-1 px-6 py-3 bg-christmas-red-500 text-white rounded-xl font-bold hover:bg-christmas-red-600 transition-colors shadow-christmas disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep rounded-xl font-bold hover:scale-105 transition-transform shadow-gold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Checking...' : 'Access My Card'}
               </button>
