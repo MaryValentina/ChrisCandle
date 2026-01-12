@@ -1,133 +1,167 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Snowflakes from '../components/Snowflakes';
 import { Button } from '../components/ui/button';
-import { Gift, Calendar, Users, Key, ArrowRight, X } from 'lucide-react';
+import { Calendar, Users, Plus, Gift, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { Event } from '../types';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { getDb, getEventByCode } from '../lib/firebase';
+import { getDb } from '../lib/firebase';
 import { convertFirestoreEvent } from '../lib/firebase';
 import { format } from 'date-fns';
 
 const OrganizerDashboard = () => {
-  const { organizerId } = useAuth();
-  const navigate = useNavigate();
+  const { organizerId, loading: authLoading } = useAuth();
+  // const navigate = useNavigate(); // Commented out - not used when empty state is disabled
   const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false); // Single state: true only when fully loaded
   const [error, setError] = useState<string | null>(null);
-  const [showInput, setShowInput] = useState(false);
-  const [eventCode, setEventCode] = useState('');
-  const [isValidCode, setIsValidCode] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
-  const [swipeProgress, setSwipeProgress] = useState(0);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const touchStartX = useRef<number>(0);
-  const touchStartY = useRef<number>(0);
-  const isSwiping = useRef<boolean>(false);
+  const fetchInProgressRef = useRef(false);
+  // Commented out - empty state UI temporarily disabled
+  // const [showInput, setShowInput] = useState(false);
+  // const [eventCode, setEventCode] = useState('');
+  // const [isValidCode, setIsValidCode] = useState(false);
+  // const [isValidating, setIsValidating] = useState(false);
+  // const [swipeProgress, setSwipeProgress] = useState(0);
+  // const buttonRef = useRef<HTMLButtonElement>(null);
+  // const touchStartX = useRef<number>(0);
+  // const touchStartY = useRef<number>(0);
+  // const isSwiping = useRef<boolean>(false);
 
   useEffect(() => {
-    if (organizerId) {
-      fetchEvents(organizerId);
-    } else {
-      setError('Please sign in to view your events');
-      setIsLoading(false);
-    }
-  }, [organizerId]);
-
-  const handleButtonClick = () => {
-    if (!showInput) {
-      setShowInput(true);
-      setEventCode('');
-      setIsValidCode(false);
-    }
-  };
-
-  const validateEventCode = async (code: string) => {
-    if (!code.trim() || code.trim().length < 3) {
-      setIsValidCode(false);
+    // Wait for auth to finish loading before checking organizerId
+    if (authLoading) {
+      setIsReady(false);
+      fetchInProgressRef.current = false;
       return;
     }
-
-    setIsValidating(true);
-    try {
-      const normalizedCode = code.toUpperCase().trim();
-      const event = await getEventByCode(normalizedCode);
-      setIsValidCode(!!event);
-    } catch (error) {
-      console.error('Error validating code:', error);
-      setIsValidCode(false);
-    } finally {
-      setIsValidating(false);
+    
+    // Reset events and ready state when organizerId changes or on mount
+    if (!organizerId) {
+      setEvents([]);
+      setError('Please sign in to view your events');
+      setIsReady(true);
+      fetchInProgressRef.current = false;
+      return;
     }
-  };
+    
+    // Prevent multiple simultaneous fetches
+    if (fetchInProgressRef.current) {
+      return;
+    }
+    
+    // Fetch events for the organizer
+    setError(null);
+    setIsReady(false); // Set loading state
+    fetchInProgressRef.current = true;
+    fetchEvents(organizerId);
+  }, [organizerId, authLoading]);
 
+  // Debug: Log when events state changes
   useEffect(() => {
-    if (showInput && eventCode.trim()) {
-      const timeoutId = setTimeout(() => {
-        validateEventCode(eventCode);
-      }, 500); // Debounce validation
+    console.log('📊 Events state changed:', {
+      count: events.length,
+      isReady,
+      eventIds: events.map(e => e.id),
+      eventNames: events.map(e => e.name)
+    });
+  }, [events, isReady]);
 
-      return () => clearTimeout(timeoutId);
-    } else {
-      setIsValidCode(false);
-    }
-  }, [eventCode, showInput]);
+  // Commented out - empty state UI handlers temporarily disabled
+  // const handleButtonClick = () => {
+  //   if (!showInput) {
+  //     setShowInput(true);
+  //     setEventCode('');
+  //     setIsValidCode(false);
+  //   }
+  // };
 
-  const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent) => {
-    if (showInput && eventCode.trim()) {
-      isSwiping.current = true;
-      if ('touches' in e) {
-        touchStartX.current = e.touches[0].clientX;
-        touchStartY.current = e.touches[0].clientY;
-      } else {
-        touchStartX.current = e.clientX;
-        touchStartY.current = e.clientY;
-      }
-    }
-  };
+  // const validateEventCode = async (code: string) => {
+  //   if (!code.trim() || code.trim().length < 3) {
+  //     setIsValidCode(false);
+  //     return;
+  //   }
 
-  const handleSwipeMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isSwiping.current || !showInput || !eventCode.trim()) return;
+  //   setIsValidating(true);
+  //   try {
+  //     const normalizedCode = code.toUpperCase().trim();
+  //     const event = await getEventByCode(normalizedCode);
+  //     setIsValidCode(!!event);
+  //   } catch (error) {
+  //     console.error('Error validating code:', error);
+  //     setIsValidCode(false);
+  //   } finally {
+  //     setIsValidating(false);
+  //   }
+  // };
 
-    let currentX: number;
-    if ('touches' in e) {
-      currentX = e.touches[0].clientX;
-    } else {
-      currentX = e.clientX;
-    }
+  // useEffect(() => {
+  //   if (showInput && eventCode.trim()) {
+  //     const timeoutId = setTimeout(() => {
+  //       validateEventCode(eventCode);
+  //     }, 500); // Debounce validation
 
-    const deltaX = currentX - touchStartX.current;
-    const buttonWidth = buttonRef.current?.offsetWidth || 200;
-    const progress = Math.min(Math.max((deltaX / buttonWidth) * 100, 0), 100);
-    setSwipeProgress(progress);
-  };
+  //     return () => clearTimeout(timeoutId);
+  //   } else {
+  //     setIsValidCode(false);
+  //   }
+  // }, [eventCode, showInput]);
 
-  const handleSwipeEnd = () => {
-    if (isSwiping.current && swipeProgress >= 80 && eventCode.trim()) {
-      // Swipe completed - navigate to event
-      navigate(`/event/${eventCode.trim().toUpperCase()}`);
-      setShowInput(false);
-      setEventCode('');
-      setSwipeProgress(0);
-    } else {
-      // Reset swipe progress
-      setSwipeProgress(0);
-    }
-    isSwiping.current = false;
-  };
+  // const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent) => {
+  //   if (showInput && eventCode.trim()) {
+  //     isSwiping.current = true;
+  //     if ('touches' in e) {
+  //       touchStartX.current = e.touches[0].clientX;
+  //       touchStartY.current = e.touches[0].clientY;
+  //     } else {
+  //       touchStartX.current = e.clientX;
+  //       touchStartY.current = e.clientY;
+  //     }
+  //   }
+  // };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && eventCode.trim()) {
-      navigate(`/event/${eventCode.trim().toUpperCase()}`);
-      setShowInput(false);
-      setEventCode('');
-    }
-  };
+  // const handleSwipeMove = (e: React.TouchEvent | React.MouseEvent) => {
+  //   if (!isSwiping.current || !showInput || !eventCode.trim()) return;
+
+  //   let currentX: number;
+  //   if ('touches' in e) {
+  //     currentX = e.touches[0].clientX;
+  //   } else {
+  //     currentX = e.clientX;
+  //   }
+
+  //   const deltaX = currentX - touchStartX.current;
+  //   const buttonWidth = buttonRef.current?.offsetWidth || 200;
+  //   const progress = Math.min(Math.max((deltaX / buttonWidth) * 100, 0), 100);
+  //   setSwipeProgress(progress);
+  // };
+
+  // const handleSwipeEnd = () => {
+  //   if (isSwiping.current && swipeProgress >= 80 && eventCode.trim()) {
+  //     navigate(`/event/${eventCode.trim().toUpperCase()}`);
+  //     setShowInput(false);
+  //     setEventCode('');
+  //     setSwipeProgress(0);
+  //   } else {
+  //     setSwipeProgress(0);
+  //   }
+  //   isSwiping.current = false;
+  // };
+
+  // const handleKeyPress = (e: React.KeyboardEvent) => {
+  //   if (e.key === 'Enter' && eventCode.trim()) {
+  //     navigate(`/event/${eventCode.trim().toUpperCase()}`);
+  //     setShowInput(false);
+  //     setEventCode('');
+  //   }
+  // };
 
   const fetchEvents = async (orgId: string) => {
     try {
+      setError(null);
+      console.log('🔄 Fetching events for organizer:', orgId);
+      
       const db = getDb();
       if (!db) {
         throw new Error('Firebase is not configured');
@@ -143,8 +177,11 @@ const OrganizerDashboard = () => {
       const fetchedEvents: Event[] = [];
       querySnapshot.forEach((doc) => {
         const event = convertFirestoreEvent(doc.data(), doc.id);
+        console.log('🔄 Converted event:', { id: event.id, name: event.name, participants: event.participants.length, status: event.status });
         fetchedEvents.push(event);
       });
+
+      console.log(`✅ Fetched ${fetchedEvents.length} events`);
 
       // Sort by createdAt in descending order (newest first)
       fetchedEvents.sort((a, b) => {
@@ -153,19 +190,29 @@ const OrganizerDashboard = () => {
         return dateB - dateA; // Descending order
       });
 
+      // Update both states together - React 18 batches these automatically
+      // This ensures no intermediate render with empty events
+      fetchInProgressRef.current = false;
+      // Batch updates: set events and ready state together
+      // React 18 will batch these in the same render cycle
       setEvents(fetchedEvents);
-      setIsLoading(false);
+      setIsReady(true); // Only set ready AFTER events are set
+      console.log('✅ Events state updated, isReady set to true');
     } catch (err) {
-      console.error('Error fetching events:', err);
+      console.error('❌ Error fetching events:', err);
+      fetchInProgressRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to load events');
-      setIsLoading(false);
+      setIsReady(true); // Set ready even on error so we can show error state
     }
   };
 
-  if (isLoading) {
+  // Show loading state: during auth loading OR before data fetch completes
+  // Only show content when auth is done AND we're ready (data loaded or error occurred)
+  if (authLoading || !isReady) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
         <Snowflakes />
+        <Navbar />
         <div className="text-center relative z-10">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
           <p className="text-snow-white">Loading your events...</p>
@@ -205,8 +252,8 @@ const OrganizerDashboard = () => {
       <Navbar />
       
       <main className="container mx-auto px-4 pt-24 pb-16 relative z-10">
-        {/* Header */}
-        <div className="mb-8">
+        {/* Header with Create Button */}
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-4xl">🎄</span>
             <div>
@@ -218,7 +265,48 @@ const OrganizerDashboard = () => {
               </p>
             </div>
           </div>
+          
+          {/* Create New Event Button */}
+          <Link to="/create-event">
+            <Button 
+              variant="hero" 
+              size="lg"
+              className="shadow-gold-lg hover:scale-105 transition-transform flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Create New Event
+            </Button>
+          </Link>
         </div>
+
+        {/* Empty State */}
+        {events.length === 0 && (
+          <div className="max-w-2xl mx-auto mt-12">
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center">
+              <div className="relative inline-block mb-6">
+                <Gift className="h-24 w-24 text-gold mx-auto animate-float" />
+              </div>
+              
+              <h2 className="font-display text-3xl text-gradient-gold mb-3">
+                No Events Yet
+              </h2>
+              <p className="text-snow-white/70 mb-8 text-lg">
+                Create your first Secret Santa event to spread the holiday cheer!
+              </p>
+              
+              <Link to="/create-event">
+                <Button 
+                  variant="hero" 
+                  size="lg"
+                  className="shadow-gold-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto"
+                >
+                  <Plus className="h-5 w-5" />
+                  Create Your First Event
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Events Grid */}
         {events.length > 0 ? (
@@ -227,50 +315,69 @@ const OrganizerDashboard = () => {
               <Link
                 key={event.id}
                 to={`/event/${event.code}/admin`}
-                className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all hover:shadow-gold group cursor-pointer"
+                className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 hover:shadow-gold transition-all duration-300 group cursor-pointer flex flex-col"
               >
+                {/* Event Header */}
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="font-display text-xl text-gold">{event.name}</h3>
-                  <span className="text-2xl group-hover:animate-float">🎁</span>
+                  <h3 className="font-display text-xl md:text-2xl text-gold group-hover:text-gold-light transition-colors flex-1 pr-2">
+                    {event.name}
+                  </h3>
+                  <span className="text-2xl group-hover:animate-float flex-shrink-0">🎁</span>
                 </div>
-                <div className="space-y-2 text-snow-white/70 text-sm mb-4">
+
+                {/* Event Details */}
+                <div className="space-y-3 text-snow-white/80 text-sm mb-4 flex-1">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gold/70" />
-                    <span>{format(new Date(event.date), 'MMM d, yyyy')}</span>
+                    <Calendar className="h-4 w-4 text-gold flex-shrink-0" />
+                    <span className="font-medium">{format(new Date(event.date), 'MMM d, yyyy')}</span>
                   </div>
+                  
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gold/70" />
-                    <span>{event.participants.length} participants</span>
+                    <Users className="h-4 w-4 text-gold flex-shrink-0" />
+                    <span>
+                      <span className="font-semibold text-gold">{event.participants.length}</span>
+                      {' '}participant{event.participants.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
+                  
                   {event.budget && (
                     <div className="flex items-center gap-2">
-                      <span>${event.budget} budget</span>
+                      <span className="text-gold">💰</span>
+                      <span>Budget: <span className="font-semibold">${event.budget}</span></span>
                     </div>
                   )}
-                  <div className="pt-2 border-t border-gold/20">
-                    <span className="font-mono text-xs text-gold">Code: {event.code}</span>
+                  
+                  {/* Event Code */}
+                  <div className="pt-3 border-t border-gold/20 mt-3">
+                    <div className="flex items-center gap-2">
+                      <Copy className="h-3 w-3 text-gold/70 flex-shrink-0" />
+                      <span className="font-mono text-xs text-gold/90">Code: {event.code}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gold/20">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
+
+                {/* Status Badge */}
+                <div className="mt-auto pt-4 border-t border-gold/20">
+                  <span className={`inline-block text-xs font-semibold px-3 py-1.5 rounded-full ${
                     event.status === 'active'
-                      ? 'bg-green-500/20 text-green-300'
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                       : event.status === 'drawn'
-                      ? 'bg-christmas-red-500/20 text-christmas-red-300'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                       : event.status === 'completed'
-                      ? 'bg-blue-500/20 text-blue-300'
-                      : 'bg-gray-500/20 text-gray-300'
+                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
                   }`}>
-                    {event.status}
+                    {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
                   </span>
                 </div>
               </Link>
             ))}
           </div>
-        ) : (
-          /* Empty State - Two Boxes Side by Side */
+        ) : null}
+        
+        {/* Empty State - Commented out for now */}
+        {/* {events.length === 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* No Events Yet Box */}
             <div className="bg-christmas-red-dark/30 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center flex flex-col">
               <div className="relative inline-block mb-6">
                 <Gift className="h-20 w-20 text-gold mx-auto animate-float" />
@@ -296,7 +403,6 @@ const OrganizerDashboard = () => {
               </div>
             </div>
 
-            {/* Access Your Event Box */}
             <div className="bg-christmas-red-dark/30 backdrop-blur-sm border border-gold/20 rounded-3xl p-12 text-center flex flex-col">
               <div className="relative inline-block mb-6">
                 <Key className="h-20 w-20 text-gold mx-auto animate-float" />
@@ -320,7 +426,6 @@ const OrganizerDashboard = () => {
                     </button>
                   ) : (
                     <>
-                      {/* Input as button */}
                       <div className="relative">
                         <input
                           type="text"
@@ -355,7 +460,6 @@ const OrganizerDashboard = () => {
                         )}
                       </div>
                       
-                      {/* Button with special effects when code is valid */}
                       {isValidCode && (
                         <div className="relative w-full h-14 rounded-full p-[2px] overflow-hidden" style={{
                           background: 'conic-gradient(from 0deg, #f59e0b, #fbbf24, #f59e0b, #fbbf24, #f59e0b)',
@@ -391,10 +495,8 @@ const OrganizerDashboard = () => {
                               )}
                             </span>
                             
-                            {/* Glow bar on hover */}
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gold/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md" />
                             
-                            {/* Swipe progress overlay */}
                             {swipeProgress > 0 && (
                               <div
                                 className="absolute inset-0 bg-gradient-to-r from-christmas-red-500/80 to-christmas-red-600/80 transition-all duration-300 rounded-full"
@@ -417,7 +519,7 @@ const OrganizerDashboard = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </main>
     </div>
   );
