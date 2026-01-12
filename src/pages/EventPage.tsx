@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail } from '../lib/firebase'
-import { sendWelcomeEmail } from '../lib/email'
+import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail, getDb } from '../lib/firebase'
+import { doc, getDoc } from 'firebase/firestore'
+import { sendWelcomeEmail, sendOrganizerNotificationEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
 import { checkAndExpireEvent, getEventStatusMessage, recreateEventForNextYear } from '../lib/eventExpiry'
 import ParticipantCard from '../components/features/ParticipantCard'
@@ -252,7 +253,7 @@ export default function EventPage() {
         setEvent(updatedEvent)
       }
 
-      // Send welcome email
+      // Send welcome email to participant
       try {
         const eventLink = `${window.location.origin}/event/${event.code}`
         const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
@@ -267,6 +268,41 @@ export default function EventPage() {
       } catch (emailError) {
         // Don't fail the join if email fails
         console.warn('Failed to send welcome email:', emailError)
+      }
+
+      // Send notification email to organizer
+      try {
+        const db = getDb()
+        if (db && event.organizerId) {
+          // Get organizer info from Firestore
+          const organizerDocRef = doc(db, 'users', event.organizerId)
+          const organizerDoc = await getDoc(organizerDocRef)
+          
+          if (organizerDoc.exists()) {
+            const organizerData = organizerDoc.data()
+            const organizerEmail = organizerData?.email
+            const organizerName = organizerData?.name || null
+            
+            if (organizerEmail) {
+              const eventLink = `${window.location.origin}/event/${event.code}/admin`
+              const totalParticipants = updatedEvent?.participants.length || event.participants.length + 1
+              
+              await sendOrganizerNotificationEmail({
+                organizerEmail,
+                organizerName,
+                participantName: formData.name,
+                participantEmail: formData.email,
+                eventName: event.name,
+                eventCode: event.code,
+                totalParticipants,
+                eventLink,
+              })
+            }
+          }
+        }
+      } catch (emailError) {
+        // Don't fail the join if organizer notification email fails
+        console.warn('Failed to send organizer notification email:', emailError)
       }
 
       // Show success message

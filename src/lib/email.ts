@@ -2,15 +2,18 @@
  * Email Service for ChrisCandle
  * 
  * Supports both mock (development) and real email providers:
- * - Resend (recommended)
- * - SendGrid
+ * - Vercel (recommended for production - uses serverless functions)
+ * - Resend
+ * - SendGrid (direct API calls)
  * - Mock mode (development)
  * 
  * Environment variables:
- * - VITE_EMAIL_PROVIDER: 'resend' | 'sendgrid' | 'mock' (default: 'mock')
- * - VITE_RESEND_API_KEY: Resend API key
- * - VITE_SENDGRID_API_KEY: SendGrid API key
+ * - VITE_EMAIL_PROVIDER: 'vercel' | 'resend' | 'sendgrid' | 'mock' (default: 'vercel' in production, 'mock' in dev)
+ * - VITE_RESEND_API_KEY: Resend API key (if using Resend)
+ * - VITE_SENDGRID_API_KEY: SendGrid API key (if using SendGrid directly)
  * - VITE_EMAIL_FROM: Sender email address
+ * 
+ * Note: For Vercel provider, SENDGRID_API_KEY must be set in Vercel project environment variables.
  */
 
 interface EmailOptions {
@@ -48,11 +51,24 @@ interface ReminderEmailData {
   daysUntil: number
 }
 
+interface OrganizerNotificationEmailData {
+  organizerEmail: string
+  organizerName: string | null
+  participantName: string
+  participantEmail: string
+  eventName: string
+  eventCode: string
+  totalParticipants: number
+  eventLink: string
+}
+
 /**
  * Get email configuration from environment variables
  */
 function getEmailConfig() {
-  const provider = import.meta.env.VITE_EMAIL_PROVIDER || 'mock'
+  // Default to 'vercel' in production, 'mock' in development
+  const defaultProvider = import.meta.env.PROD ? 'vercel' : 'mock'
+  const provider = import.meta.env.VITE_EMAIL_PROVIDER || defaultProvider
   const fromEmail = import.meta.env.VITE_EMAIL_FROM || 'noreply@chriscandle.com'
   const resendApiKey = import.meta.env.VITE_RESEND_API_KEY
   const sendgridApiKey = import.meta.env.VITE_SENDGRID_API_KEY
@@ -70,6 +86,35 @@ function getEmailConfig() {
  */
 async function sendEmail(options: EmailOptions): Promise<void> {
   const config = getEmailConfig()
+
+  // Vercel serverless function (recommended for production)
+  if (config.provider === 'vercel') {
+    try {
+      const response = await fetch('/api/sendEmail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: options.to,
+          subject: options.subject,
+          text: options.text || options.html.replace(/<[^>]*>/g, ''),
+          html: options.html,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(`Vercel API error: ${error.error || response.statusText}`)
+      }
+
+      console.log('✅ Email sent via Vercel:', options.to)
+    } catch (error) {
+      console.error('❌ Error sending email via Vercel:', error)
+      throw error
+    }
+    return
+  }
 
   // Mock mode (development)
   if (config.provider === 'mock') {
@@ -268,6 +313,59 @@ function generateDrawEmailHTML(data: DrawEmailData): string {
 }
 
 /**
+ * Generate HTML email template for organizer notification email
+ */
+function generateOrganizerNotificationEmailHTML(data: OrganizerNotificationEmailData): string {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New Participant Joined - ${data.eventName}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #990000 0%, #b30000 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: #ffd700; margin: 0; font-size: 32px;">🎄 ChrisCandle</h1>
+      </div>
+      <div style="background: #ffffff; padding: 30px; border: 2px solid #990000; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #990000; margin-top: 0;">🎉 New Participant Joined!</h2>
+        <p>Hi ${data.organizerName || 'Organizer'},</p>
+        <p>Great news! A new participant has joined your Secret Santa event.</p>
+        
+        <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #228B22;">
+          <h3 style="color: #228B22; margin-top: 0;">New Participant</h3>
+          <p style="margin: 5px 0;"><strong>Name:</strong> ${data.participantName}</p>
+          <p style="margin: 5px 0;"><strong>Email:</strong> ${data.participantEmail}</p>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 5px 0;"><strong>Event:</strong> ${data.eventName}</p>
+          <p style="margin: 5px 0;"><strong>Total Participants:</strong> ${data.totalParticipants}</p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.eventLink}" style="display: inline-block; background: #990000; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            View Event Dashboard
+          </a>
+        </div>
+
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          You can manage participants and run the draw from your admin dashboard.
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          Happy organizing! 🎄
+        </p>
+      </div>
+      <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+        <p>This email was sent by ChrisCandle Secret Santa app.</p>
+      </div>
+    </body>
+    </html>
+  `
+}
+
+/**
  * Generate HTML email template for reminder email
  */
 function generateReminderEmailHTML(data: ReminderEmailData): string {
@@ -365,6 +463,24 @@ export async function sendReminderEmail(data: ReminderEmailData): Promise<void> 
     console.log('✅ Reminder email sent to:', data.participantEmail)
   } catch (error) {
     console.error('❌ Error sending reminder email:', error)
+    throw error
+  }
+}
+
+/**
+ * Send notification email to organizer when a new participant joins
+ */
+export async function sendOrganizerNotificationEmail(data: OrganizerNotificationEmailData): Promise<void> {
+  try {
+    const html = generateOrganizerNotificationEmailHTML(data)
+    await sendEmail({
+      to: data.organizerEmail,
+      subject: `🎉 New participant joined ${data.eventName}`,
+      html,
+    })
+    console.log('✅ Organizer notification email sent to:', data.organizerEmail)
+  } catch (error) {
+    console.error('❌ Error sending organizer notification email:', error)
     throw error
   }
 }
