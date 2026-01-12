@@ -211,9 +211,10 @@ const OrganizerDashboard = () => {
     }
   };
 
-  // Show loading state: during auth loading OR before data fetch completes
-  // Only show content when auth is done AND we're ready (data loaded or error occurred)
-  if (authLoading || !isReady) {
+  // Show loading state: during auth loading OR before data fetch completes OR before first fetch
+  // This prevents empty state from rendering during SSR/first hydration
+  // Only show content when auth is done AND we're ready AND at least one fetch has completed
+  if (authLoading || !isReady || !hasFetchedOnce) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
         <Snowflakes />
@@ -275,21 +276,6 @@ const OrganizerDashboard = () => {
             </div>
           </div>
         </main>
-      </div>
-    );
-  }
-
-  // Safety check: Don't show events grid until we've fetched at least once
-  // This prevents flashing empty grid during initial load
-  if (!hasFetchedOnce) {
-    return (
-      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-        <Snowflakes />
-        <Navbar />
-        <div className="text-center relative z-10">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-          <p className="text-snow-white">Loading your events...</p>
-        </div>
       </div>
     );
   }
