@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Snowflakes from '../components/Snowflakes';
+import SantaLoader from '../components/SantaLoader';
 import { Button } from '../components/ui/button';
 import { Calendar, Users, Plus, Gift, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +19,7 @@ const OrganizerDashboard = () => {
   const [isReady, setIsReady] = useState(false); // Single state: true only when fully loaded
   const [error, setError] = useState<string | null>(null);
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [minimumLoaderDone, setMinimumLoaderDone] = useState(false);
   const fetchInProgressRef = useRef(false);
   // Commented out - empty state UI temporarily disabled
   // const [showInput, setShowInput] = useState(false);
@@ -61,6 +63,22 @@ const OrganizerDashboard = () => {
     setHasFetchedOnce(false); // Reset fetch flag until fetch completes
     fetchInProgressRef.current = true;
     fetchEvents(organizerId!);
+  }, [organizerId, authLoading]);
+
+  // Minimum loader timer: ensure loader shows for at least 2 seconds
+  useEffect(() => {
+    if (authLoading) {
+      setMinimumLoaderDone(false);
+      return;
+    }
+
+    // Start loader timer when we begin fetching
+    setMinimumLoaderDone(false);
+    const timer = setTimeout(() => {
+      setMinimumLoaderDone(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [organizerId, authLoading]);
 
   // Debug: Log when events state changes
@@ -217,28 +235,19 @@ const OrganizerDashboard = () => {
     }
   };
 
-  // Always show spinner until auth + fetch complete
-  // This is the ONLY gate that prevents empty state from flashing
-  // All three conditions must be true before showing any content:
+  // Always show loader until auth + fetch complete + minimum display time
+  // This prevents empty state from flashing and ensures smooth UX
+  // All four conditions must be true before showing any content:
   // 1. authLoading === false (Firebase Auth finished)
   // 2. isReady === true (Fetch completed or error occurred)
   // 3. hasFetchedOnce === true (At least one fetch attempt completed)
-  if (authLoading || !isReady || !hasFetchedOnce) {
-    return (
-      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
-        <Snowflakes />
-        <Navbar />
-        <div className="text-center relative z-10">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-          <p className="text-snow-white">Loading your events...</p>
-        </div>
-      </div>
-    );
+  // 4. minimumLoaderDone === true (Loader shown for at least 2 seconds)
+  if (authLoading || !isReady || !hasFetchedOnce || !minimumLoaderDone) {
+    return <SantaLoader />;
   }
 
   // Show error only after a fetch attempt
-  // hasFetchedOnce check is redundant here (already gated above) but kept for clarity
-  if (error && hasFetchedOnce) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-christmas-red-600 via-christmas-red-800 to-christmas-red-900 relative overflow-hidden flex items-center justify-center">
         <Snowflakes />
@@ -258,8 +267,7 @@ const OrganizerDashboard = () => {
   }
 
   // Show empty state only after fetch completes and events are truly empty
-  // hasFetchedOnce check is redundant here (already gated above) but kept for clarity
-  if (events.length === 0 && hasFetchedOnce) {
+  if (events.length === 0) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
         <Snowflakes />
