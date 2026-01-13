@@ -34,6 +34,7 @@ const OrganizerDashboard = () => {
     // Wait for auth to finish loading before checking organizerId
     if (authLoading) {
       setIsReady(false);
+      setHasFetchedOnce(false); // Reset fetch flag during auth loading
       fetchInProgressRef.current = false;
       return;
     }
@@ -57,6 +58,7 @@ const OrganizerDashboard = () => {
     // Fetch events for the organizer
     setError(null);
     setIsReady(false); // Set loading state
+    setHasFetchedOnce(false); // Reset fetch flag until fetch completes
     fetchInProgressRef.current = true;
     fetchEvents(organizerId!);
   }, [organizerId, authLoading]);
@@ -163,6 +165,9 @@ const OrganizerDashboard = () => {
   const fetchEvents = async (orgId: string) => {
     try {
       setError(null);
+      // Ensure hasFetchedOnce is false during fetch to prevent empty state flash
+      setHasFetchedOnce(false);
+      setIsReady(false);
       console.log('🔄 Fetching events for organizer:', orgId);
       
       const db = getDb();
@@ -193,27 +198,31 @@ const OrganizerDashboard = () => {
         return dateB - dateA; // Descending order
       });
 
-      // Update both states together - React 18 batches these automatically
+      // Update all states together - React 18 batches these automatically
       // This ensures no intermediate render with empty events
       fetchInProgressRef.current = false;
-      // Batch updates: set events and ready state together
+      // Batch updates: set events, ready state, and fetch flag together
       // React 18 will batch these in the same render cycle
       setEvents(fetchedEvents);
       setIsReady(true); // Only set ready AFTER events are set
       setHasFetchedOnce(true); // Mark that we've completed at least one fetch
-      console.log('✅ Events state updated, isReady set to true');
+      console.log('✅ Events state updated, isReady set to true, hasFetchedOnce set to true');
     } catch (err) {
       console.error('❌ Error fetching events:', err);
       fetchInProgressRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to load events');
       setIsReady(true); // Set ready even on error so we can show error state
       setHasFetchedOnce(true); // Mark that we've completed at least one fetch attempt
+      console.log('✅ Error state set, isReady set to true, hasFetchedOnce set to true');
     }
   };
 
-  // Show loading state: during auth loading OR before data fetch completes OR before first fetch
-  // This prevents empty state from rendering during SSR/first hydration
-  // Only show content when auth is done AND we're ready AND at least one fetch has completed
+  // Always show spinner until auth + fetch complete
+  // This is the ONLY gate that prevents empty state from flashing
+  // All three conditions must be true before showing any content:
+  // 1. authLoading === false (Firebase Auth finished)
+  // 2. isReady === true (Fetch completed or error occurred)
+  // 3. hasFetchedOnce === true (At least one fetch attempt completed)
   if (authLoading || !isReady || !hasFetchedOnce) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
@@ -227,7 +236,8 @@ const OrganizerDashboard = () => {
     );
   }
 
-  // Only show error state after at least one fetch attempt has completed
+  // Show error only after a fetch attempt
+  // hasFetchedOnce check is redundant here (already gated above) but kept for clarity
   if (error && hasFetchedOnce) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-christmas-red-600 via-christmas-red-800 to-christmas-red-900 relative overflow-hidden flex items-center justify-center">
@@ -247,7 +257,8 @@ const OrganizerDashboard = () => {
     );
   }
 
-  // Show empty state only AFTER fetch completes and events are truly empty
+  // Show empty state only after fetch completes and events are truly empty
+  // hasFetchedOnce check is redundant here (already gated above) but kept for clarity
   if (events.length === 0 && hasFetchedOnce) {
     return (
       <div className="min-h-screen bg-background relative overflow-hidden">
