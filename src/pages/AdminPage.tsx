@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, updateEvent, saveAssignments, getAssignments } from '../lib/firebase'
+import { getEventByCode, subscribeToEvent, updateEvent, deleteEvent, saveAssignments, getAssignments } from '../lib/firebase'
 import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
@@ -32,7 +32,6 @@ import {
   ListChecks,
   Download,
   Send,
-  ToggleRight
 } from 'lucide-react'
 import type { Event } from '../types'
 
@@ -47,15 +46,22 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [isRunningDraw, setIsRunningDraw] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [showDateModal, setShowDateModal] = useState(false)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showExpiryModal, setShowExpiryModal] = useState(false)
-  const [newDate, setNewDate] = useState('')
-  const [newExpiryDays, setNewExpiryDays] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
+  
+  // Edit form state
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    date: '',
+    budget: '',
+    budgetCurrency: 'USD',
+    description: '',
+  })
 
   // Fetch event and set up real-time subscription
   useEffect(() => {
@@ -106,6 +112,16 @@ export default function AdminPage() {
           }
           if (updatedEvent) {
             setEvent(updatedEvent)
+            // Update edit form data if in edit mode
+            if (isEditing) {
+              setEditFormData({
+                name: updatedEvent.name,
+                date: typeof updatedEvent.date === 'string' ? updatedEvent.date : updatedEvent.date.toISOString().split('T')[0],
+                budget: updatedEvent.budget?.toString() || '',
+                budgetCurrency: updatedEvent.budgetCurrency || 'USD',
+                description: updatedEvent.description || '',
+              })
+            }
           }
         })
 
@@ -125,7 +141,7 @@ export default function AdminPage() {
         unsubscribeRef.current()
       }
     }
-  }, [code])
+  }, [code, isEditing])
 
   const handleRunDraw = async () => {
     if (!event) return
@@ -231,41 +247,89 @@ export default function AdminPage() {
     }
   }
 
-  const handleExtendDate = async () => {
-    if (!event || !newDate) return
+  const handleStartEdit = () => {
+    if (!event) return
+    setIsEditing(true)
+    setEditFormData({
+      name: event.name,
+      date: typeof event.date === 'string' ? event.date : event.date.toISOString().split('T')[0],
+      budget: event.budget?.toString() || '',
+      budgetCurrency: event.budgetCurrency || 'USD',
+      description: event.description || '',
+    })
+    setError(null)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setEditFormData({
+      name: '',
+      date: '',
+      budget: '',
+      budgetCurrency: 'USD',
+      description: '',
+    })
+    setError(null)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!event) return
 
     setIsUpdating(true)
     try {
-      const dateStr = new Date(newDate).toISOString()
-      await updateEvent(event.id, { date: dateStr })
-      setShowDateModal(false)
-      setNewDate('')
+      const updates: any = {
+        name: editFormData.name,
+        date: editFormData.date,
+      }
+
+      if (editFormData.budget) {
+        updates.budget = Number(editFormData.budget)
+        updates.budgetCurrency = editFormData.budgetCurrency
+      } else {
+        updates.budget = undefined
+        updates.budgetCurrency = undefined
+      }
+
+      if (editFormData.description) {
+        updates.description = editFormData.description
+      } else {
+        updates.description = undefined
+      }
+
+      await updateEvent(event.id, updates)
+      setIsEditing(false)
       setError(null)
+      
+      trackEvent(AnalyticsEvents.EVENT_SETTINGS_UPDATED, {
+        event_id: event.id,
+        action: 'edit_event',
+      })
     } catch (err) {
-      console.error('Error extending date:', err)
-      setError(err instanceof Error ? err.message : 'Failed to extend date')
+      console.error('Error saving event:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save event')
     } finally {
       setIsUpdating(false)
     }
   }
 
-  const handleCancelEvent = async () => {
+  const handleDeleteEvent = async () => {
     if (!event) return
 
-    setIsUpdating(true)
+    setIsDeleting(true)
     try {
-      await updateEvent(event.id, { status: 'expired' })
-      setShowCancelModal(false)
-      setError(null)
+      await deleteEvent(event.id)
+      setShowDeleteModal(false)
       trackEvent(AnalyticsEvents.EVENT_SETTINGS_UPDATED, {
         event_id: event.id,
-        action: 'cancel_event',
+        action: 'delete_event',
       })
+      // Navigate to organizer dashboard after deletion
+      navigate('/my-events')
     } catch (err) {
-      console.error('Error canceling event:', err)
-      setError(err instanceof Error ? err.message : 'Failed to cancel event')
+      console.error('Error deleting event:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete event')
     } finally {
-      setIsUpdating(false)
+      setIsDeleting(false)
     }
   }
 
@@ -366,33 +430,6 @@ export default function AdminPage() {
     })
   }
 
-  const handleUpdateExpiryDays = async () => {
-    if (!event || !newExpiryDays) return
-
-    const expiryDays = parseInt(newExpiryDays, 10)
-    if (isNaN(expiryDays) || expiryDays < 1) {
-      setError('Please enter a valid number of days (minimum 1)')
-      return
-    }
-
-    setIsUpdating(true)
-    try {
-      await updateEvent(event.id, { expiryDays })
-      setShowExpiryModal(false)
-      setNewExpiryDays('')
-      setError(null)
-      trackEvent(AnalyticsEvents.EVENT_SETTINGS_UPDATED, {
-        event_id: event.id,
-        action: 'update_expiry',
-        expiry_days: expiryDays,
-      })
-    } catch (err) {
-      console.error('Error updating expiry days:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update expiry days')
-    } finally {
-      setIsUpdating(false)
-    }
-  }
 
   const readyCount = event?.participants.filter((p) => p.isReady).length || 0
   const totalCount = event?.participants.length || 0
@@ -514,7 +551,7 @@ export default function AdminPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all shadow-gold">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-gold/20 rounded-lg">
                 <Users className="h-5 w-5 text-gold" />
@@ -525,7 +562,7 @@ export default function AdminPage() {
             <p className="text-xs text-snow-white/50 mt-1 font-body">Real-time count</p>
           </div>
 
-          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all shadow-gold">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-gold/20 rounded-lg">
                 <CheckCircle className="h-5 w-5 text-gold" />
@@ -536,7 +573,7 @@ export default function AdminPage() {
             <p className="text-xs text-snow-white/50 mt-1 font-body">{readyPercentage}% ready</p>
           </div>
 
-          <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 transition-all shadow-gold">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-gold/20 rounded-lg">
                 <Activity className="h-5 w-5 text-gold" />
@@ -551,36 +588,121 @@ export default function AdminPage() {
         </div>
 
         {/* Event Details & Share */}
-        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
           <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
             <Gift className="h-6 w-6" />
             Event Details
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="flex items-center gap-3 text-snow-white/80">
-              <Sparkles className="h-4 w-4 text-gold/70" />
-              <span className="text-snow-white/60">Name:</span>
-              <span className="font-medium">{event.name}</span>
-            </div>
-            <div className="flex items-center gap-3 text-snow-white/80">
-              <span className="text-2xl">🎫</span>
-              <span className="text-snow-white/60">Code:</span>
-              <span className="font-mono font-bold text-gold">{event.code}</span>
-            </div>
-            <div className="flex items-center gap-3 text-snow-white/80">
-              <Calendar className="h-4 w-4 text-gold/70" />
-              <span className="text-snow-white/60">Date:</span>
-              <span>{format(new Date(event.date), 'MMMM d, yyyy')}</span>
-            </div>
-            {event.budget && (
-              <div className="flex items-center gap-3 text-snow-white/80">
-                <DollarSign className="h-4 w-4 text-gold/70" />
-                <span className="text-snow-white/60">Budget:</span>
-                <span>${event.budget}</span>
+          {isEditing ? (
+            <div className="space-y-4 mb-6">
+              <div>
+                <label htmlFor="editName" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Event Name <span className="text-gold">*</span>
+                </label>
+                <input
+                  id="editName"
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  required
+                />
               </div>
-            )}
-          </div>
+              
+              <div>
+                <label htmlFor="editDate" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Gift Exchange Date <span className="text-gold">*</span>
+                </label>
+                <input
+                  id="editDate"
+                  type="date"
+                  value={editFormData.date}
+                  onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="editBudget" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Budget <span className="text-snow-white/50">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    id="editBudgetCurrency"
+                    value={editFormData.budgetCurrency}
+                    onChange={(e) => setEditFormData({ ...editFormData, budgetCurrency: e.target.value })}
+                    className="bg-christmas-red-deep/50 border border-gold/30 text-snow-white rounded-lg px-3 py-2 focus:border-gold focus:ring-gold/20 focus:outline-none"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="LKR">LKR</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CAD">CAD</option>
+                    <option value="AUD">AUD</option>
+                    <option value="JPY">JPY</option>
+                    <option value="INR">INR</option>
+                  </select>
+                  <input
+                    id="editBudget"
+                    type="number"
+                    value={editFormData.budget}
+                    onChange={(e) => setEditFormData({ ...editFormData, budget: e.target.value })}
+                    placeholder="e.g., 25"
+                    className="flex-1 px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="editDescription" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Description <span className="text-snow-white/50">(optional)</span>
+                </label>
+                <textarea
+                  id="editDescription"
+                  value={editFormData.description}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body resize-none"
+                  placeholder="Add any special instructions or rules..."
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="flex items-center gap-3 text-snow-white/80">
+                <Sparkles className="h-4 w-4 text-gold/70" />
+                <span className="text-snow-white/60">Name:</span>
+                <span className="font-medium">{event.name}</span>
+              </div>
+              <div className="flex items-center gap-3 text-snow-white/80">
+                <span className="text-2xl">🎫</span>
+                <span className="text-snow-white/60">Code:</span>
+                <span className="font-mono font-bold text-gold">{event.code}</span>
+              </div>
+              <div className="flex items-center gap-3 text-snow-white/80">
+                <Calendar className="h-4 w-4 text-gold/70" />
+                <span className="text-snow-white/60">Date:</span>
+                <span>{(() => {
+                  // Handle YYYY-MM-DD format strings correctly
+                  if (typeof event.date === 'string' && event.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    const [year, month, day] = event.date.split('-').map(Number)
+                    const date = new Date(year, month - 1, day)
+                    return format(date, 'MMMM d, yyyy')
+                  }
+                  return format(new Date(event.date), 'MMMM d, yyyy')
+                })()}</span>
+              </div>
+              {event.budget && (
+                <div className="flex items-center gap-3 text-snow-white/80">
+                  <DollarSign className="h-4 w-4 text-gold/70" />
+                  <span className="text-snow-white/60">Budget:</span>
+                  <span>{event.budgetCurrency || 'USD'} {event.budget}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Share Section */}
           <div className="border-t border-gold/20 pt-6">
@@ -628,7 +750,7 @@ export default function AdminPage() {
             </div>
 
             {shareableLink && (
-              <div className="bg-muted/50 rounded-xl p-4">
+              <div className="bg-christmas-red-dark/30 rounded-xl p-4 border border-gold/10">
                 <div className="text-xs text-snow-white/50 mb-2 font-body">Shareable Link:</div>
                 <div className="text-sm font-mono text-gold break-all">{shareableLink}</div>
               </div>
@@ -637,20 +759,20 @@ export default function AdminPage() {
         </div>
 
         {/* Participants List */}
-        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
           <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
             <Users className="h-6 w-6" />
             Participants ({totalCount})
           </h2>
           
-          {totalCount === 0 ? (
+            {totalCount === 0 ? (
             <p className="text-snow-white/60 text-center py-8 font-body">No participants yet.</p>
           ) : (
             <div className="space-y-3">
               {event.participants.map((participant) => (
                 <div
                   key={participant.id}
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-gold/20"
+                  className="flex items-center justify-between p-4 bg-christmas-red-dark/30 rounded-xl hover:bg-christmas-red-dark/50 transition-colors border border-gold/10 hover:border-gold/30"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -682,7 +804,7 @@ export default function AdminPage() {
                       className={`px-3 py-1.5 rounded-full text-sm font-semibold font-body flex items-center gap-1 ${
                         participant.isReady
                           ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-muted text-snow-white/60 border border-snow-white/20'
+                          : 'bg-christmas-red-dark/50 text-snow-white/60 border border-gold/20'
                       }`}
                     >
                       {participant.isReady ? (
@@ -727,7 +849,7 @@ export default function AdminPage() {
         </div>
 
         {/* Draw Actions */}
-        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8">
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
           <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
             <Shuffle className="h-6 w-6" />
             Draw Actions
@@ -755,7 +877,7 @@ export default function AdminPage() {
                 )}
               </Button>
             ) : (
-              <div className="p-4 bg-muted/50 rounded-xl text-snow-white/60 text-center font-body border border-snow-white/10">
+              <div className="p-4 bg-christmas-red-dark/30 rounded-xl text-snow-white/60 text-center font-body border border-gold/20">
                 {totalCount < 2
                   ? '⚠️ Need at least 2 participants to run draw'
                   : !event.participants.every((p) => p.isReady)
@@ -781,60 +903,59 @@ export default function AdminPage() {
         </div>
 
         {/* Event Settings */}
-        <div className="bg-card/60 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8">
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 shadow-gold">
           <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
             <Settings className="h-6 w-6" />
             Event Settings
           </h2>
           
           <div className="space-y-4">
-            <div>
-              <Button
-                onClick={() => setShowDateModal(true)}
-                disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
-                variant="outline"
-                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Calendar className="mr-2 h-5 w-5" />
-                📅 Extend Event Date
-              </Button>
-              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
-                Change the gift exchange date (only if draw hasn't been run)
-              </p>
-            </div>
+            {isEditing ? (
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleCancelEdit}
+                  disabled={isUpdating}
+                  variant="outline"
+                  className="flex-1 bg-christmas-red-dark/30 border-gold/30 text-snow-white hover:bg-christmas-red-dark/50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating || !editFormData.name || !editFormData.date}
+                  variant="hero"
+                  className="flex-1 shadow-gold"
+                >
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Button
+                    onClick={handleStartEdit}
+                    disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
+                    variant="outline"
+                    className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Settings className="mr-2 h-5 w-5" />
+                    Edit Event
+                  </Button>
+                </div>
 
-            <div>
-              <Button
-                onClick={() => {
-                  setShowExpiryModal(true)
-                  setNewExpiryDays(event.expiryDays?.toString() || '7')
-                }}
-                disabled={isUpdating}
-                variant="outline"
-                className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ToggleRight className="mr-2 h-5 w-5" />
-                Set Expiry Duration
-              </Button>
-              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
-                Current: {event.expiryDays || 7} days after event date
-              </p>
-            </div>
-
-            <div>
-              <Button
-                onClick={() => setShowCancelModal(true)}
-                disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
-                variant="outline"
-                className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X className="mr-2 h-5 w-5" />
-                ❌ Cancel Event
-              </Button>
-              <p className="text-xs text-snow-white/50 mt-2 text-center font-body">
-                Cancel this event (only if draw hasn't been run)
-              </p>
-            </div>
+                <div>
+                  <Button
+                    onClick={() => setShowDeleteModal(true)}
+                    disabled={isDeleting || event.status === 'drawn' || event.status === 'completed'}
+                    variant="outline"
+                    className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="mr-2 h-5 w-5" />
+                    Delete Event
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -846,143 +967,36 @@ export default function AdminPage() {
         )}
       </main>
 
-      {/* Extend Date Modal */}
-      {showDateModal && (
+      {/* Delete Event Modal */}
+      {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-gold/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
-            <h3 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
-              <Calendar className="h-6 w-6" />
-              Extend Event Date
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="newDate" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
-                  New Exchange Date
-                </label>
-                <input
-                  id="newDate"
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 bg-muted border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
-                  disabled={isUpdating}
-                />
-              </div>
-              
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => {
-                    setShowDateModal(false)
-                    setNewDate('')
-                  }}
-                  disabled={isUpdating}
-                  variant="outline"
-                  className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleExtendDate}
-                  disabled={isUpdating || !newDate}
-                  variant="hero"
-                  className="flex-1"
-                >
-                  {isUpdating ? 'Updating...' : 'Update Date'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Event Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-destructive/30 rounded-3xl max-w-md w-full p-6 md:p-8">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-destructive/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
             <h3 className="font-display text-2xl text-destructive mb-4 flex items-center gap-2">
               <X className="h-6 w-6" />
-              Cancel Event
+              Delete Event
             </h3>
             <p className="text-snow-white/70 mb-6 font-body">
-              Are you sure you want to cancel this event? This action cannot be undone. All
-              participants will be notified.
+              Are you sure you want to permanently delete this event? This action cannot be undone. 
+              All event data, participants, and assignments will be permanently removed.
             </p>
             
             <div className="flex gap-3">
               <Button
-                onClick={() => setShowCancelModal(false)}
-                disabled={isUpdating}
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
                 variant="outline"
-                className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
+                className="flex-1 bg-christmas-red-dark/30 border-gold/30 text-snow-white hover:bg-christmas-red-dark/50"
               >
                 Keep Event
               </Button>
               <Button
-                onClick={handleCancelEvent}
-                disabled={isUpdating}
+                onClick={handleDeleteEvent}
+                disabled={isDeleting}
                 variant="destructive"
                 className="flex-1"
               >
-                {isUpdating ? 'Canceling...' : 'Cancel Event'}
+                {isDeleting ? 'Deleting...' : 'Delete Event'}
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Expiry Duration Modal */}
-      {showExpiryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-gold/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
-            <h3 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
-              <ToggleRight className="h-6 w-6" />
-              Set Expiry Duration
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="expiryDays" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
-                  Days After Event Date
-                </label>
-                <input
-                  id="expiryDays"
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={newExpiryDays}
-                  onChange={(e) => setNewExpiryDays(e.target.value)}
-                  className="w-full px-4 py-3 bg-muted border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
-                  disabled={isUpdating}
-                  placeholder="7"
-                />
-                <p className="text-xs text-snow-white/50 mt-2 font-body">
-                  The event will be marked as expired this many days after the event date.
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => {
-                    setShowExpiryModal(false)
-                    setNewExpiryDays('')
-                  }}
-                  disabled={isUpdating}
-                  variant="outline"
-                  className="flex-1 bg-muted border-snow-white/20 text-snow-white hover:bg-muted/80"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleUpdateExpiryDays}
-                  disabled={isUpdating || !newExpiryDays}
-                  variant="hero"
-                  className="flex-1"
-                >
-                  {isUpdating ? 'Updating...' : 'Update Expiry'}
-                </Button>
-              </div>
             </div>
           </div>
         </div>

@@ -16,6 +16,7 @@ import {
   getDoc, 
   getDocs,
   updateDoc, 
+  deleteDoc,
   collection, 
   addDoc,
   writeBatch,
@@ -873,6 +874,33 @@ export async function updateEvent(
     console.error('❌ Error updating event:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     throw new Error(`Failed to update event: ${errorMessage}`)
+  }
+}
+
+/**
+ * Delete an event from Firestore
+ * 
+ * @param eventId - The event document ID
+ * @returns Promise that resolves when event is deleted
+ * @throws Error if Firebase is not configured or deletion fails
+ */
+export async function deleteEvent(eventId: string): Promise<void> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    const eventRef = doc(db, 'events', eventId)
+    
+    // Delete the event document
+    await deleteDoc(eventRef)
+    
+    console.log('✅ Event deleted:', eventId)
+  } catch (error) {
+    console.error('❌ Error deleting event:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to delete event: ${errorMessage}`)
   }
 }
 
