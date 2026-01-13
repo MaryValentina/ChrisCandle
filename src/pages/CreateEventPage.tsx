@@ -16,6 +16,7 @@ const CreateEventPage = () => {
   const { organizerId, organizerName, currentUser } = useAuth();
   const [step, setStep] = useState(1);
   const [eventCode, setEventCode] = useState('');
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ const CreateEventPage = () => {
     name: '',
     date: '',
     budget: '',
+    budgetCurrency: 'USD',
     description: '',
   });
   const [joinAsParticipant, setJoinAsParticipant] = useState(true);
@@ -56,6 +58,7 @@ const CreateEventPage = () => {
         code: code,
         date: formData.date,
         budget: formData.budget ? Number(formData.budget) : undefined,
+        budgetCurrency: formData.budgetCurrency || undefined,
         description: formData.description,
         organizerId: organizerId,
         participants: [],
@@ -63,25 +66,16 @@ const CreateEventPage = () => {
         status: 'active' as const,
       };
 
-      // Save to Firebase (organizer will be added as participant if they opted in)
-      if (joinAsParticipant) {
-        await createFirebaseEvent(
-          eventData,
-          currentUser?.email || undefined,
-          organizerName || currentUser?.displayName || undefined,
-          true
-        );
-      } else {
-        await createFirebaseEvent(eventData, undefined, undefined, false);
-      }
+      // Save to Firebase (organizer will be added as participant if checkbox is checked)
+      const eventId = await createFirebaseEvent(
+        eventData,
+        joinAsParticipant ? (currentUser?.email || undefined) : undefined,
+        joinAsParticipant ? (organizerName || currentUser?.displayName || undefined) : undefined
+      );
       
       setEventCode(code);
+      setCreatedEventId(eventId);
       setStep(2);
-      
-      // Auto-redirect to /my-events after 3 seconds
-      setTimeout(() => {
-        navigate('/my-events');
-      }, 3000);
     } catch (error) {
       console.error('Error creating event:', error);
       setSaveError(error instanceof Error ? error.message : 'Failed to create event. Please try again.');
@@ -202,14 +196,31 @@ const CreateEventPage = () => {
                     <Label htmlFor="budget" className="text-snow-white">
                       Budget <span className="text-snow-white/50">(optional)</span>
                     </Label>
-                    <Input
-                      id="budget"
-                      type="number"
-                      placeholder="e.g., 25"
-                      value={formData.budget}
-                      onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        id="budgetCurrency"
+                        value={formData.budgetCurrency}
+                        onChange={(e) => setFormData({ ...formData, budgetCurrency: e.target.value })}
+                        className="bg-christmas-red-deep/50 border border-gold/30 text-snow-white rounded-lg px-3 py-2 focus:border-gold focus:ring-gold/20 focus:outline-none"
+                      >
+                        <option value="USD">USD</option>
+                        <option value="LKR">LKR</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                        <option value="CAD">CAD</option>
+                        <option value="AUD">AUD</option>
+                        <option value="JPY">JPY</option>
+                        <option value="INR">INR</option>
+                      </select>
+                      <Input
+                        id="budget"
+                        type="number"
+                        placeholder="e.g., 25"
+                        value={formData.budget}
+                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                        className="flex-1 bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -240,7 +251,7 @@ const CreateEventPage = () => {
                         Join as a participant
                       </Label>
                       <p className="text-snow-white/60 text-sm mt-1">
-                        You'll be automatically added to the participant list and can receive a Secret Santa match
+                        You'll be included in the participant list and can receive a Secret Santa match
                       </p>
                     </div>
                   </div>
@@ -261,15 +272,14 @@ const CreateEventPage = () => {
                 </form>
               </>
             ) : (
-              /* Step 2: Share Code */
+              /* Step 2: Success Message */
               <div className="text-center py-6">
                 <div className="relative inline-block mb-6">
                   <Gift className="h-20 w-20 text-gold mx-auto animate-float" />
-                  <CheckCircle2 className="h-8 w-8 text-green-400 absolute -bottom-1 -right-1" />
                 </div>
 
                 <h2 className="font-display text-3xl text-gradient-gold mb-2">
-                  Event Created! 🎉
+                  Event Created Successfully! 🎉
                 </h2>
                 <p className="text-snow-white/70 mb-8">
                   Share this code with your participants to join the fun!
@@ -299,25 +309,38 @@ const CreateEventPage = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button 
-                    variant="hero"
-                    onClick={() => navigate('/my-events')}
-                    className="shadow-gold"
-                  >
-                    View My Events
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      setStep(1);
-                      setFormData({ name: '', date: '', budget: '', description: '' });
-                      setEventCode('');
-                    }}
-                    className="border-gold/40 text-gold hover:bg-gold/10"
-                  >
-                    Create Another Event
-                  </Button>
+                <div className="flex flex-col gap-3 justify-center max-w-sm mx-auto">
+                  {createdEventId && (
+                    <Button 
+                      variant="hero"
+                      onClick={() => navigate(`/event/${eventCode}/admin`)}
+                      className="shadow-gold w-full"
+                    >
+                      View Event
+                    </Button>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      variant="outline"
+                      onClick={() => navigate('/my-events')}
+                      className="flex-1 border-gold/40 text-gold hover:bg-gold/10"
+                    >
+                      View My Events
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setStep(1);
+                        setFormData({ name: '', date: '', budget: '', budgetCurrency: 'USD', description: '' });
+                        setJoinAsParticipant(true);
+                        setEventCode('');
+                        setCreatedEventId(null);
+                      }}
+                      className="flex-1 border-gold/40 text-gold hover:bg-gold/10"
+                    >
+                      Create Another
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

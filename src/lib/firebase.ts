@@ -256,12 +256,30 @@ export function getFirebaseApp(): FirebaseApp | null {
 
 /**
  * Convert FirestoreDate to Firestore Timestamp
+ * Handles date strings from HTML date inputs (YYYY-MM-DD) correctly
  */
 function toFirestoreTimestamp(date: FirestoreDate): Timestamp {
   if (date instanceof Date) {
     return Timestamp.fromDate(date)
   }
   if (typeof date === 'string') {
+    // Handle date strings from HTML date inputs (YYYY-MM-DD format)
+    // Create date at midnight UTC to preserve the exact selected date
+    if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = date.split('-').map(Number)
+      // Use UTC to avoid timezone shifts - this preserves the exact date
+      const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+      console.log('📅 Converting date string to Firestore:', {
+        input: date,
+        year,
+        month,
+        day,
+        utcDate: utcDate.toISOString(),
+        localDate: new Date(year, month - 1, day).toISOString()
+      })
+      return Timestamp.fromDate(utcDate)
+    }
+    // For ISO strings or other formats, use standard Date parsing
     return Timestamp.fromDate(new Date(date))
   }
   return Timestamp.now()
@@ -306,8 +324,117 @@ export function convertFirestoreEvent(data: any, id: string): Event {
       id,
       code: data.code || '', // TODO: Generate code if missing
       name: data.name || 'Unnamed Event',
-      date: data.date ? fromFirestoreTimestamp(data.date) : new Date().toISOString(),
+      date: data.date ? (() => {
+        // Convert Firestore timestamp to date string preserving the original date
+        const timestamp = data.date
+        
+        // Handle Firestore Timestamp object (with toDate method)
+        if (timestamp?.toDate && typeof timestamp.toDate === 'function') {
+          const date = timestamp.toDate()
+          const year = date.getUTCFullYear()
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+          const day = String(date.getUTCDate()).padStart(2, '0')
+          const dateString = `${year}-${month}-${day}`
+          
+          console.log('📅 Converting Firestore Timestamp (toDate method):', {
+            timestampSeconds: timestamp.seconds,
+            timestampNanoseconds: timestamp.nanoseconds,
+            toDateUTC: date.toISOString(),
+            result: dateString
+          })
+          
+          return dateString
+        }
+        
+        // Handle serialized Firestore Timestamp (plain object with seconds/nanoseconds)
+        // This happens when Firestore data is serialized/deserialized
+        if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+          const seconds = timestamp.seconds
+          const nanoseconds = timestamp.nanoseconds || 0
+          
+          // Create a Date from the seconds (Firestore timestamps are in UTC)
+          // Multiply seconds by 1000 to convert to milliseconds, add nanoseconds in milliseconds
+          const date = new Date(seconds * 1000 + Math.floor(nanoseconds / 1000000))
+          const year = date.getUTCFullYear()
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+          const day = String(date.getUTCDate()).padStart(2, '0')
+          const dateString = `${year}-${month}-${day}`
+          
+          console.log('📅 Converting Firestore Timestamp (serialized object):', {
+            seconds,
+            nanoseconds,
+            dateUTC: date.toISOString(),
+            result: dateString
+          })
+          
+          return dateString
+        }
+        
+        // If already a string, return as is
+        if (typeof timestamp === 'string') {
+          console.log('📅 Date is already string:', timestamp)
+          return timestamp
+        }
+        
+        // Try to reconstruct Timestamp from object structure
+        if (timestamp && typeof timestamp === 'object') {
+          // Check if it has seconds property (even if toDate doesn't exist)
+          if ('seconds' in timestamp && typeof timestamp.seconds === 'number') {
+            try {
+              // Use the already imported Timestamp class
+              const firestoreTimestamp = new Timestamp(timestamp.seconds, timestamp.nanoseconds || 0)
+              const date = firestoreTimestamp.toDate()
+              const year = date.getUTCFullYear()
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+              const day = String(date.getUTCDate()).padStart(2, '0')
+              const dateString = `${year}-${month}-${day}`
+              
+              console.log('📅 Converting Firestore Timestamp (reconstructed from object):', {
+                seconds: timestamp.seconds,
+                nanoseconds: timestamp.nanoseconds,
+                result: dateString
+              })
+              
+              return dateString
+            } catch (error) {
+              // Fall through to direct conversion
+              console.warn('⚠️ Failed to reconstruct Timestamp, trying direct conversion:', error)
+            }
+            
+            // Direct conversion from seconds (works even if Timestamp constructor fails)
+            const seconds = timestamp.seconds
+            const date = new Date(seconds * 1000)
+            const year = date.getUTCFullYear()
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+            const day = String(date.getUTCDate()).padStart(2, '0')
+            const dateString = `${year}-${month}-${day}`
+            
+            console.log('📅 Converting Firestore Timestamp (direct from seconds):', {
+              seconds,
+              result: dateString
+            })
+            
+            return dateString
+          }
+        }
+        
+        console.error('❌ Date field is not a valid timestamp or string:', {
+          type: typeof timestamp,
+          value: timestamp,
+          hasToDate: !!timestamp?.toDate,
+          hasSeconds: !!timestamp?.seconds,
+          keys: timestamp && typeof timestamp === 'object' ? Object.keys(timestamp) : 'N/A',
+          timestampType: timestamp?.constructor?.name
+        })
+        console.warn('⚠️ Using today as fallback - this should not happen!')
+        return new Date().toISOString().split('T')[0]
+      })() : (() => {
+        console.error('❌ Event data missing date field completely')
+        console.warn('⚠️ Using today as fallback - this should not happen!')
+        return new Date().toISOString().split('T')[0]
+      })(),
       budget: data.budget,
+      budgetCurrency: data.budgetCurrency,
       organizerId: data.organizerId || '',
       participants: (data.participants || []).map((p: any) => {
         // Ensure participant has required fields
@@ -337,6 +464,10 @@ export function convertFirestoreEvent(data: any, id: string): Event {
     console.log('🔄 Converted event:', {
       id: convertedEvent.id,
       name: convertedEvent.name,
+      date: convertedEvent.date,
+      dateType: typeof convertedEvent.date,
+      budget: convertedEvent.budget,
+      budgetCurrency: convertedEvent.budgetCurrency,
       participants: convertedEvent.participants.length,
       status: convertedEvent.status,
     })
@@ -389,7 +520,7 @@ function removeUndefined(obj: any): any {
  * @returns Promise that resolves to the created event ID
  * @throws Error if Firebase is not configured or creation fails
  */
-export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organizerEmail?: string, organizerName?: string, addOrganizerAsParticipant: boolean = true): Promise<string> {
+export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organizerEmail?: string, organizerName?: string): Promise<string> {
   try {
     const db = getDb()
     if (!db) {
@@ -407,10 +538,10 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
       return code
     }
 
-    // Add organizer as participant only if requested
+    // Add organizer as participant only if email/name are provided
     let allParticipants = [...eventData.participants]
     
-    if (addOrganizerAsParticipant) {
+    if (organizerEmail || organizerName) {
       // Get organizer info from auth if not provided
       let organizerEmailFinal = organizerEmail
       let organizerNameFinal = organizerName
@@ -426,7 +557,7 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
       const { v4: uuidv4 } = await import('uuid')
       const organizerParticipantId = uuidv4()
 
-      // Create organizer participant
+      // Create organizer participant with isReady: true and isOrganizer: true
       const organizerParticipant: Participant = {
         id: organizerParticipantId,
         eventId: '', // Will be set after event creation
@@ -441,10 +572,15 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
       allParticipants = [organizerParticipant, ...eventData.participants]
     }
     
+    // Validate date is provided
+    if (!eventData.date) {
+      throw new Error('Event date is required')
+    }
+    
     const eventDoc: Omit<EventData, 'id'> = {
       ...eventData,
       code: eventData.code || generateCode(),
-      date: typeof eventData.date === 'string' ? eventData.date : eventData.date.toISOString(),
+      date: eventData.date, // Keep as-is (string or Date), toFirestoreTimestamp will handle conversion
       participants: allParticipants.map(p => {
         const participant: any = {
           id: p.id,
@@ -490,6 +626,10 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     if (eventDoc.budget !== undefined && eventDoc.budget !== null) {
       firestoreDataRaw.budget = eventDoc.budget
     }
+    // Always save budgetCurrency if provided, regardless of budget value
+    if (eventDoc.budgetCurrency !== undefined && eventDoc.budgetCurrency !== null) {
+      firestoreDataRaw.budgetCurrency = eventDoc.budgetCurrency
+    }
     if (eventDoc.description) {
       firestoreDataRaw.description = eventDoc.description
     }
@@ -504,6 +644,13 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     console.log('💾 Saving event to Firestore:', {
       name: firestoreData.name,
       code: firestoreData.code,
+      originalDate: eventDoc.date,
+      dateType: typeof eventDoc.date,
+      dateTimestamp: firestoreData.date,
+      dateTimestampSeconds: firestoreData.date?.seconds,
+      dateTimestampNanoseconds: firestoreData.date?.nanoseconds,
+      budget: firestoreData.budget,
+      budgetCurrency: firestoreData.budgetCurrency,
       organizerId: firestoreData.organizerId,
       participantsCount: firestoreData.participants?.length || 0,
       status: firestoreData.status,
@@ -688,6 +835,10 @@ export async function updateEvent(
     if (updates.status !== undefined) updateDataRaw.status = updates.status
     if (updates.budget !== undefined && updates.budget !== null) {
       updateDataRaw.budget = updates.budget
+    }
+    // Always save budgetCurrency if provided, regardless of budget value
+    if (updates.budgetCurrency !== undefined && updates.budgetCurrency !== null) {
+      updateDataRaw.budgetCurrency = updates.budgetCurrency
     }
     if (updates.description !== undefined) updateDataRaw.description = updates.description
     if (updates.exclusions !== undefined) {
