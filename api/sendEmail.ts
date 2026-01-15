@@ -20,13 +20,13 @@ const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 // Verified sender email in SendGrid: mvalentina1990@outlook.com
 const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'mvalentina1990@outlook.com';
 
+// Validate API key is present
 if (!SENDGRID_API_KEY) {
-  console.error('❌ SENDGRID_API_KEY is not set in environment variables');
+  throw new Error('Missing SENDGRID_API_KEY in environment variables');
 }
 
-if (SENDGRID_API_KEY) {
-  sgMail.setApiKey(SENDGRID_API_KEY);
-}
+// Initialize SendGrid with API key
+sgMail.setApiKey(SENDGRID_API_KEY);
 
 export default async function handler(
   request: VercelRequest,

@@ -1,14 +1,28 @@
 # Quick SendGrid Setup
 
-You've already created `sendgrid.env` with your API key. Now complete the setup:
+## 1. Environment Variables Setup
 
-## 1. Set Firebase Functions Config
+**Never commit real API keys. Use environment variables.**
 
-The `sendgrid.env` file is for local development. For deployed functions, you need to set it in Firebase:
+### Local Development
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Add your SendGrid API key to `.env`:
+   ```env
+   SENDGRID_API_KEY=YOUR_KEY_HERE
+   ```
+
+### Firebase Functions Config
+
+For deployed functions, you need to set it in Firebase:
 
 ```bash
 # Set SendGrid API Key
-firebase functions:config:set sendgrid.key="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"
+firebase functions:config:set sendgrid.key="YOUR_KEY_HERE"
 
 # Set App Domain (for email links)
 # Replace with your actual deployed domain

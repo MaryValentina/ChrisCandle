@@ -41,8 +41,10 @@ VITE_FIREBASE_PROJECT_ID=chriscandle-e8cbd
 VITE_FIREBASE_STORAGE_BUCKET=chriscandle-e8cbd.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=542096921248
 VITE_FIREBASE_APP_ID=1:542096921248:web:b2707d755c92854b232fc5
-SENDGRID_API_KEY=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
+SENDGRID_API_KEY=YOUR_KEY_HERE
 ```
+
+**⚠️ Important:** Never commit real API keys. Use environment variables in Vercel Dashboard.
 
 **Important:**
 - ✅ All variables must be set

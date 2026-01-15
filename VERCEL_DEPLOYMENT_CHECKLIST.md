@@ -28,8 +28,10 @@ Go to **Vercel Dashboard → Your Project → Settings → Environment Variables
 - ✅ `VITE_FIREBASE_APP_ID` = `1:542096921248:web:b2707d755c92854b232fc5`
 
 **Required SendGrid Variables:**
-- ✅ `SENDGRID_API_KEY` = `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`
+- ✅ `SENDGRID_API_KEY` = `YOUR_KEY_HERE` (get from SendGrid dashboard)
 - ✅ `SENDGRID_FROM_EMAIL` = `mvalentina1990@outlook.com` (optional, has default)
+
+**⚠️ Important:** Never commit real API keys. Use environment variables in Vercel Dashboard.
 
 **Important:** 
 - Select **Production**, **Preview**, and **Development** for each variable
