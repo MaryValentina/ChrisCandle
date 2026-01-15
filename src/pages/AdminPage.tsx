@@ -17,7 +17,6 @@ import {
   ArrowLeft, 
   Copy, 
   Check, 
-  Link as LinkIcon, 
   Users, 
   CheckCircle, 
   Activity,
@@ -714,7 +713,29 @@ Looking forward to celebrating together!`
           </div>
         </div>
 
-        {/* Event Details & Share */}
+        {/* Share Event Message Section - Moved to Top */}
+        <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
+          <h2 className="font-display text-2xl md:text-3xl text-gradient-gold mb-3 text-center">
+            🎁 Share this event with your friends!
+          </h2>
+          <p className="text-snow-white/70 mb-6 text-center text-sm md:text-base">
+            Copy and share the invitation message to invite participants to your Secret Santa event.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={handleShareEvent}
+              variant="hero"
+              size="lg"
+              className="w-full sm:w-auto shadow-gold hover:scale-105 transition-transform"
+            >
+              <Send className="mr-2 h-5 w-5" />
+              Share Event
+            </Button>
+          </div>
+        </div>
+
+        {/* Event Details */}
         <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
           <h2 className="font-display text-2xl text-gold mb-6 flex items-center gap-2">
             <Gift className="h-6 w-6" />
@@ -855,95 +876,6 @@ Looking forward to celebrating together!`
                   <span>{event.budgetCurrency || 'USD'} {event.budget}</span>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Share Section */}
-          <div className="border-t border-gold/20 pt-6">
-            <h3 className="font-display text-lg text-gold mb-4 flex items-center gap-2">
-              <LinkIcon className="h-5 w-5" />
-              Share Event
-            </h3>
-            
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <Button
-                onClick={handleShareEvent}
-                variant="hero"
-                className="w-full shadow-gold"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Share Event
-              </Button>
-            </div>
-          </div>
-
-          {/* Share Message Modal */}
-          {showShareMessageModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="bg-christmas-red-dark/95 backdrop-blur-sm border-2 border-gold/40 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-gold-lg max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-display text-2xl text-gradient-gold flex items-center gap-2">
-                    <Send className="h-6 w-6" />
-                    Share Event Message
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowShareMessageModal(false)
-                      setShareMessage('')
-                      setShareMessageCopied(false)
-                    }}
-                    className="text-snow-white/70 hover:text-snow-white transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <p className="text-snow-white/70 mb-4 text-sm">
-                  {shareMessageCopied 
-                    ? '✅ Message copied to clipboard! You can edit it below before sending:'
-                    : 'The message will be copied to your clipboard in a moment. You can edit it below before sending:'}
-                </p>
-                
-                <div className="mb-4">
-                  <Textarea
-                    value={shareMessage}
-                    onChange={(e) => setShareMessage(e.target.value)}
-                    rows={12}
-                    className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none font-body"
-                  />
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={handleCopyShareMessage}
-                    variant="outline"
-                    className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
-                  >
-                    {shareMessageCopied ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Message Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy Message
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setShowShareMessageModal(false)
-                      setShareMessage('')
-                      setShareMessageCopied(false)
-                    }}
-                    variant="hero"
-                    className="flex-1 shadow-gold"
-                  >
-                    Done
-                  </Button>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -1162,6 +1094,76 @@ Looking forward to celebrating together!`
           </div>
         )}
       </main>
+
+      {/* Share Message Modal */}
+      {showShareMessageModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-start justify-center p-4 pt-8">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-sm border-2 border-gold/40 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-gold-lg flex flex-col relative">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <h3 className="font-display text-2xl text-gradient-gold flex items-center gap-2">
+                <Send className="h-6 w-6" />
+                Share Event Message
+              </h3>
+              <button
+                onClick={() => {
+                  setShowShareMessageModal(false)
+                  setShareMessage('')
+                  setShareMessageCopied(false)
+                }}
+                className="text-snow-white/70 hover:text-snow-white transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <p className="text-snow-white/70 mb-4 text-sm flex-shrink-0">
+              {shareMessageCopied 
+                ? '✅ Message copied to clipboard! You can edit it below before sending:'
+                : 'The message will be copied to your clipboard in a moment. You can edit it below before sending:'}
+            </p>
+            
+            <div className="mb-4">
+              <Textarea
+                value={shareMessage}
+                onChange={(e) => setShareMessage(e.target.value)}
+                rows={12}
+                className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none font-body"
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0 pt-4 border-t border-gold/20">
+              <Button
+                onClick={handleCopyShareMessage}
+                variant="outline"
+                className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
+              >
+                {shareMessageCopied ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Message Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Message
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowShareMessageModal(false)
+                  setShareMessage('')
+                  setShareMessageCopied(false)
+                }}
+                variant="hero"
+                className="flex-1 shadow-gold"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Wishlist Modal */}
       {showEditWishlistModal && editingParticipantId && (
