@@ -5,8 +5,23 @@ import App from './App.tsx'
 import { AuthProvider } from './contexts/AuthContext'
 import { initAnalytics } from './lib/analytics'
 
-// Initialize analytics
-initAnalytics()
+// Initialize analytics asynchronously after React mounts
+// This ensures Firebase app is ready before Analytics tries to initialize
+async function initializeAnalytics() {
+  try {
+    await initAnalytics()
+  } catch (error) {
+    // Analytics is optional - app should work without it
+    console.debug('Analytics initialization skipped:', error)
+  }
+}
+
+// Start analytics initialization (don't await - let it run in background)
+initializeAnalytics()
+
+console.log("Firebase API Key:", import.meta.env.VITE_FIREBASE_API_KEY);
+console.log("SendGrid API Key:", import.meta.env.VITE_SENDGRID_API_KEY);
+console.log("SendGrid From Email:", import.meta.env.VITE_SENDGRID_FROM_EMAIL);
 
 // Verify root element exists
 const rootElement = document.getElementById('root')

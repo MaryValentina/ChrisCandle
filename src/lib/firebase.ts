@@ -43,6 +43,7 @@ interface FirebaseConfig {
   storageBucket?: string
   messagingSenderId?: string
   appId?: string
+  databaseURL?: string
 }
 
 /**
@@ -53,12 +54,20 @@ function getFirebaseConfig(): FirebaseConfig | null {
   const apiKey = import.meta.env.VITE_FIREBASE_API_KEY
   const authDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
   const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID
+  const storageBucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET
+  const messagingSenderId = import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID
+  const appId = import.meta.env.VITE_FIREBASE_APP_ID
+  const databaseURL = import.meta.env.VITE_FIREBASE_DATABASE_URL
 
   // Debug: Log what we're getting (without exposing full values)
   console.log('🔍 Firebase Config Check:')
   console.log('  - API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING')
   console.log('  - Auth Domain:', authDomain || 'MISSING')
   console.log('  - Project ID:', projectId || 'MISSING')
+  console.log('  - Storage Bucket:', storageBucket || 'MISSING (optional)')
+  console.log('  - Messaging Sender ID:', messagingSenderId || 'MISSING (optional)')
+  console.log('  - App ID:', appId || 'MISSING (optional)')
+  console.log('  - Database URL:', databaseURL || 'MISSING (optional)')
   console.log('  - All env vars:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_FIREBASE')))
 
   // Return null if config is missing (don't throw - allow app to work without Firebase)
@@ -70,14 +79,27 @@ function getFirebaseConfig(): FirebaseConfig | null {
     return null
   }
 
-  return {
+  const config: FirebaseConfig = {
     apiKey,
     authDomain,
     projectId,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || undefined,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || undefined,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || undefined,
   }
+
+  // Add optional fields only if they are provided
+  if (storageBucket) {
+    config.storageBucket = storageBucket
+  }
+  if (messagingSenderId) {
+    config.messagingSenderId = messagingSenderId
+  }
+  if (appId) {
+    config.appId = appId
+  }
+  if (databaseURL) {
+    config.databaseURL = databaseURL
+  }
+
+  return config
 }
 
 /**
