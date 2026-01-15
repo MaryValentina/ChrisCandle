@@ -13,8 +13,8 @@ const HeroSection = () => {
       // User is logged in, go to dashboard
       navigate('/my-events');
     } else {
-      // User is not logged in, redirect to login
-      navigate('/login');
+      // User is not logged in, redirect to signup first
+      navigate('/signup');
     }
   };
 
@@ -55,6 +55,14 @@ const HeroSection = () => {
                 </span>
                 <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               </Button>
+              <button
+                onClick={() => navigate('/how-it-works')}
+                className="font-body text-lg px-8 py-6 text-gold font-semibold animate-bulb-blink relative group transition-all duration-300 hover:scale-105 cursor-pointer"
+              >
+                <span className="relative z-10">How It Works</span>
+                {/* Glow effect that pulses like a bulb */}
+                <span className="absolute inset-0 bg-gold/20 rounded-lg blur-md -z-10 animate-bulb-glow" />
+              </button>
             </div>
 
             {/* Additional info */}

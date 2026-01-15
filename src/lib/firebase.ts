@@ -1109,6 +1109,13 @@ export async function saveAssignments(eventId: string, assignments: AssignmentDa
       throw new Error('Firebase is not configured. Please set Firebase environment variables.')
     }
 
+    // Check if assignments already exist - prevent overwriting after draw
+    const existingAssignments = await getAssignments(eventId)
+    if (existingAssignments.length > 0) {
+      console.warn('⚠️ Assignments already exist for this event. Cannot overwrite existing assignments.')
+      throw new Error('Assignments already exist for this event. The draw has already been completed and cannot be changed.')
+    }
+
     // Use batch write for atomic operation
     const batch = writeBatch(db)
     const assignmentsRef = collection(db, 'events', eventId, 'assignments')
@@ -1137,9 +1144,10 @@ export async function saveAssignments(eventId: string, assignments: AssignmentDa
         firestoreData.revealedAt = null
       }
 
-      // Create document reference with auto-generated ID
-      const docRef = doc(assignmentsRef)
-      batch.set(docRef, firestoreData)
+      // Create document reference with giverId as document ID to ensure uniqueness
+      // This prevents duplicate assignments and ensures each giver has exactly one receiver
+      const docRef = doc(assignmentsRef, assignmentDoc.giverId)
+      batch.set(docRef, firestoreData, { merge: false }) // merge: false ensures we don't overwrite existing assignments
     })
 
     // Commit the batch

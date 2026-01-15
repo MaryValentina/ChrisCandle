@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Button } from './ui/button';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogIn, LogOut } from 'lucide-react';
 
 const Navbar = () => {
   const location = useLocation();
@@ -94,44 +93,59 @@ const Navbar = () => {
 
           {/* Right Side - Desktop */}
           <div className="hidden md:flex items-center gap-4">
-            {/* How It Works - Only show on landing page */}
-            {location.pathname === '/' && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  navigate('/how-it-works');
-                }}
-                className="font-body text-gold font-semibold animate-bulb-blink relative group px-3 py-1.5 rounded-lg transition-all duration-300 hover:scale-105 cursor-pointer"
-              >
-                <span className="relative z-10">How It Works</span>
-                {/* Glow effect that pulses like a bulb */}
-                <span className="absolute inset-0 bg-gold/20 rounded-lg blur-md -z-10 animate-bulb-glow" />
-              </button>
-            )}
-            
-            {currentUser && (
-              <Button 
-                variant="navGlow" 
-                size="sm" 
-                className="font-body"
-                onClick={handleLogout}
-              >
-                Logout
-              </Button>
+            {/* Login/Logout Icon Button - Hide on event pages for participants */}
+            {!location.pathname.startsWith('/event/') && (
+              <>
+                {currentUser ? (
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-all duration-300 group relative"
+                    title="Logout"
+                    aria-label="Logout"
+                  >
+                    <LogOut className="h-5 w-5 transition-transform group-hover:scale-110" />
+                    <span className="absolute inset-0 bg-gold/10 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-all duration-300 group relative"
+                    title="Login"
+                    aria-label="Login"
+                  >
+                    <LogIn className="h-5 w-5 transition-transform group-hover:scale-110" />
+                    <span className="absolute inset-0 bg-gold/10 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                  </button>
+                )}
+              </>
             )}
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
-            {currentUser && (
-              <Button 
-                variant="navGlow" 
-                size="sm" 
-                className="font-body"
-                onClick={handleLogout}
-              >
-                Logout
-              </Button>
+            {/* Login/Logout Icon Button - Hide on event pages for participants */}
+            {!location.pathname.startsWith('/event/') && (
+              <>
+                {currentUser ? (
+                  <button
+                    onClick={handleLogout}
+                    className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-all duration-300"
+                    title="Logout"
+                    aria-label="Logout"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-all duration-300"
+                    title="Login"
+                    aria-label="Login"
+                  >
+                    <LogIn className="h-5 w-5" />
+                  </button>
+                )}
+              </>
             )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -150,19 +164,6 @@ const Navbar = () => {
               {navLinks.map((link) => (
                 <NavLink key={link.name} link={link} />
               ))}
-              {/* How It Works in mobile menu - Only show on landing page */}
-              {location.pathname === '/' && (
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    navigate('/how-it-works');
-                  }}
-                  className="font-body text-gold font-semibold animate-bulb-blink relative group py-2 px-3 rounded-lg text-left w-full"
-                >
-                  <span className="relative z-10">How It Works</span>
-                  <span className="absolute inset-0 bg-gold/20 rounded-lg blur-md -z-10 animate-bulb-glow" />
-                </button>
-              )}
             </div>
           </div>
         )}

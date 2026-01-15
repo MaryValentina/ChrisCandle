@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { format } from 'date-fns'
 import { getEvent, getAssignments, findParticipantByEmail } from '../lib/firebase'
 import ResultsCard from '../components/features/ResultsCard'
+import ParticipantCard from '../components/features/ParticipantCard'
+import CountdownTimer from '../components/CountdownTimer'
 import Navbar from '../components/Navbar'
 import Snowflakes from '../components/Snowflakes'
 import { Button } from '../components/ui/button'
@@ -41,6 +44,7 @@ export default function ResultsPage() {
         setEvent(fetchedEvent)
 
         // Check if current user is a participant
+        // First try by logged-in user email (for organizers who are also participants)
         let participant: Participant | null = null
         if (currentUser?.email && fetchedEvent) {
           try {
@@ -49,6 +53,19 @@ export default function ResultsPage() {
             console.warn('Could not find participant by email:', err)
           }
         }
+        
+        // If not found and no logged-in user, check localStorage (for regular participants)
+        if (!participant && fetchedEvent) {
+          const storedEmail = localStorage.getItem(`event_${fetchedEvent.id}_email`)
+          if (storedEmail) {
+            try {
+              participant = await findParticipantByEmail(fetchedEvent.id, storedEmail)
+            } catch (err) {
+              console.warn('Could not find participant by stored email:', err)
+            }
+          }
+        }
+        
         setCurrentParticipant(participant || null)
 
         // Fetch assignments
@@ -64,42 +81,24 @@ export default function ResultsPage() {
     }
 
     fetchData()
-  }, [id, currentUser?.email, organizerId])
+  }, [id, currentUser?.email])
 
   // Get participant by ID
   const getParticipant = (id: string) => {
     return event?.participants.find((p) => p.id === id)
   }
 
-  // Check if event is completed (only then can everyone see all pairs)
-  const isEventCompleted = () => {
-    return event?.status === 'completed'
+  // Find the current user's match (receiver)
+  const getCurrentUserMatch = (): Participant | null => {
+    if (!currentParticipant || assignments.length === 0) return null
+    
+    const userAssignment = assignments.find(a => a.giverId === currentParticipant.id)
+    if (!userAssignment) return null
+    
+    return getParticipant(userAssignment.receiverId) || null
   }
 
-  // Get assignments to display based on event status and user role
-  const getDisplayAssignments = (): Assignment[] => {
-    if (!event || assignments.length === 0) return []
-    
-    const eventCompleted = isEventCompleted()
-    
-    // If event is completed, show all assignments to everyone
-    if (eventCompleted) {
-      return assignments
-    }
-    
-    // Before event completion: only show current participant's own assignment
-    // Organizers cannot see all pairs - they can only see their own if they're a participant
-    if (currentParticipant) {
-      const userAssignment = assignments.find(a => a.giverId === currentParticipant.id)
-      return userAssignment ? [userAssignment] : []
-    }
-    
-    // If no participant found, return empty (organizers cannot see pairs unless they're participants)
-    return []
-  }
-
-  const displayAssignments = getDisplayAssignments()
-  const eventCompleted = isEventCompleted()
+  const currentUserMatch = getCurrentUserMatch()
 
   if (isLoading) {
     return (
@@ -171,124 +170,99 @@ export default function ResultsPage() {
       
       <main className="container mx-auto px-4 pt-24 pb-16 relative z-10">
         <div className="max-w-4xl mx-auto">
+          {/* Event Header */}
           <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
             <h1 className="font-display text-3xl md:text-4xl text-gradient-gold mb-2">
-              🎉 Secret Santa Assignments
+              🎉 {event.name}
             </h1>
-            <p className="text-snow-white/70 mb-8">
-              {eventDatePassed 
-                ? `All Secret Santa pairings for ${event.name}. The event date has passed, so everyone can see all matches!`
-                : `Your Secret Santa assignment for ${event.name}. After the event date (${new Date(event.date).toLocaleDateString()}), everyone will be able to see all pairings.`
-              }
+            <p className="text-snow-white/70 mb-6">
+              Secret Santa Assignments
             </p>
 
-            {/* All Assignments View - Only show if event date passed */}
-            {eventDatePassed && (
-              <div className="space-y-4 mb-8">
-                <h2 className="font-display text-2xl text-gradient-gold mb-4">All Pairings</h2>
-                {assignments.map((assignment) => {
-                const giver = getParticipant(assignment.giverId)
-                const receiver = getParticipant(assignment.receiverId)
-
-                if (!giver || !receiver) return null
-
-                return (
-                  <div
-                    key={assignment.giverId}
-                    className="p-6 bg-christmas-red-dark/30 border border-gold/20 rounded-xl backdrop-blur-sm"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="text-lg font-bold text-gold mb-1">
-                          🎁 {giver.name}
-                        </div>
-                        <div className="text-sm text-snow-white/60">is buying for</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl text-gold">→</div>
-                        <div className="text-lg font-bold text-gold">
-                          {receiver.name}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-              </div>
-            )}
-
-            {/* Individual Assignment Card */}
-            {displayAssignments.length > 0 && (
-              <div className="mb-6">
-                <h2 className="font-display text-2xl text-gradient-gold mb-4 text-center">
-                  {eventDatePassed ? 'All Assignments' : 'Your Assignment'}
-                </h2>
-                <div className="space-y-6">
-                  {displayAssignments.map((assignment) => {
-                const receiver = getParticipant(assignment.receiverId)
-                if (!receiver) return null
-
-                return (
-                  <ResultsCard
-                    key={assignment.giverId}
-                    assignment={assignment}
-                    receiver={receiver}
-                    onSendMessage={() => {
-                      // TODO: Implement message functionality
-                      console.log('Send message to', receiver.name)
-                    }}
-                  />
-                )
-              })}
+            {/* Event Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                <div className="text-sm text-snow-white/60 mb-1">📅 Exchange Date</div>
+                <div className="font-bold text-gold">
+                  {(() => {
+                    if (typeof event.date === 'string' && event.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      const [year, month, day] = event.date.split('-').map(Number)
+                      const date = new Date(year, month - 1, day)
+                      return format(date, 'MMM d, yyyy')
+                    }
+                    return format(new Date(event.date), 'MMM d, yyyy')
+                  })()}
                 </div>
               </div>
-            )}
+              {event.time && (
+                <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                  <div className="text-sm text-snow-white/60 mb-1">🕒 Time</div>
+                  <div className="font-bold text-gold">
+                    {(() => {
+                      const [hours, minutes] = event.time.split(':').map(Number)
+                      const period = hours >= 12 ? 'PM' : 'AM'
+                      const displayHours = hours % 12 || 12
+                      const displayMinutes = minutes.toString().padStart(2, '0')
+                      return `${displayHours}:${displayMinutes} ${period}`
+                    })()}
+                  </div>
+                </div>
+              )}
+              {event.venue && (
+                <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                  <div className="text-sm text-snow-white/60 mb-1">📍 Venue</div>
+                  <div className="font-bold text-gold">{event.venue}</div>
+                </div>
+              )}
+              <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                <div className="text-sm text-snow-white/60 mb-1">👥 Participants</div>
+                <div className="font-bold text-gold">{event.participants.length}</div>
+              </div>
+            </div>
 
-            {/* No Assignment Message */}
-            {displayAssignments.length === 0 && !eventCompleted && (
-              <div className="mb-6 p-6 bg-gold/10 border-2 border-gold/30 rounded-xl text-center backdrop-blur-sm">
-                <div className="text-4xl mb-2">🎁</div>
-                <h3 className="font-bold text-gold mb-2">No Assignment Found</h3>
-                <p className="text-snow-white/80">
-                  {currentParticipant 
-                    ? "You don't have an assignment yet. Please contact the organizer."
-                    : organizerId && event.organizerId === organizerId
-                    ? "As the organizer, you can only see your own assignment if you're also a participant. You cannot view other participants' matches until the event is completed."
-                    : "You need to join this event as a participant to see your assignment."
-                  }
-                </p>
+            {/* Countdown Timer */}
+            {event.status === 'drawn' && (
+              <div className="p-4 bg-gold/10 border border-gold/20 rounded-xl">
+                <CountdownTimer eventDate={event.date} eventTime={event.time} />
               </div>
             )}
           </div>
 
-          {/* Actions */}
-          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8">
-            <h2 className="font-display text-2xl text-gradient-gold mb-4">Actions</h2>
-            <p className="text-snow-white/70 mb-6">
-              Share the results or manage your event further.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" className="flex-1 shadow-gold">
-                Export Results
-              </Button>
-              <Link
-                to={`/event/${id}`}
-                className="flex-1"
-              >
-                <Button variant="outline" className="w-full border-gold/30 text-gold hover:bg-gold/10">
-                  Back to Event
-                </Button>
-              </Link>
-              <Link
-                to="/"
-                className="flex-1"
-              >
-                <Button variant="outline" className="w-full border-gold/30 text-gold hover:bg-gold/10">
-                  Home
-                </Button>
-              </Link>
-            </div>
+          {/* Participants List with Highlighted Match */}
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+            <h2 className="font-display text-2xl text-gradient-gold mb-4">
+              Participants ({event.participants.length})
+            </h2>
+            {event.participants.length === 0 ? (
+              <p className="text-snow-white/70">No participants yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {event.participants.map((participant) => {
+                  const isMatch = currentUserMatch?.id === participant.id
+                  return (
+                    <div key={participant.id} className={isMatch ? 'relative' : ''}>
+                      <ParticipantCard
+                        participant={participant}
+                        showActions={false}
+                        isMatch={isMatch}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
+
+          {/* No Assignments Message */}
+          {assignments.length === 0 && (
+            <div className="mb-6 p-6 bg-gold/10 border-2 border-gold/30 rounded-xl text-center backdrop-blur-sm">
+              <div className="text-4xl mb-2">🎁</div>
+              <h3 className="font-bold text-gold mb-2">No Assignments Yet</h3>
+              <p className="text-snow-white/80">
+                The draw hasn't been completed yet. Please wait for the organizer to run the draw.
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>

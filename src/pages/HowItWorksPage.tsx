@@ -12,32 +12,32 @@ const HowItWorksPage = () => {
   const participantSteps = [
     {
       icon: Mail,
-      title: 'Get Your Code',
-      description: 'Your organizer will share a special code with you via WhatsApp, text, email, or in person.',
-      example: 'SANTA2024'
+      title: 'Get Your Event Link',
+      description: 'Your organizer will share a special event link with you via WhatsApp, text, email, or in person.',
+      example: null
     },
     {
       icon: Sparkles,
-      title: 'Enter the Code',
-      description: 'Visit ChrisCandle and type your code in the box, then click \'Join Event\' to see the magic unfold.',
+      title: 'Open the Link',
+      description: 'Click the event link to view all the party details, date, time, venue, and see who else is joining!',
       example: null
     },
     {
       icon: Eye,
       title: 'See Party Details',
-      description: 'View the party date, gift budget, and see who else is joining the festive fun!',
+      description: 'View the party date, time, venue, gift budget, and see who else is joining the festive fun!',
       example: null
     },
     {
       icon: Users,
       title: 'Join the Fun',
-      description: 'Click \'Join This Event\' and enter your name, email, and optional wishlist to participate.',
+      description: 'Click \'Join Event\' and enter your name, email, and optional wishlist to participate. You\'re automatically ready!',
       example: null
     },
     {
       icon: Gift,
       title: 'Get Your Match',
-      description: 'When the draw happens, you\'ll receive an email with your Secret Santa match and their wishlist!',
+      description: 'When the organizer runs the draw, you\'ll receive an email with your Secret Santa match and their wishlist!',
       example: null
     },
     {
@@ -51,20 +51,20 @@ const HowItWorksPage = () => {
   const organizerSteps = [
     {
       icon: Crown,
-      title: 'Create Your Event',
-      description: 'Click \'Create Event\' and enter your party name, date, and gift budget to get started.',
+      title: 'Sign Up & Create Event',
+      description: 'Sign up for a free account, then click \'Organize Event\' to create your Secret Santa event with name, date, time, venue, and budget.',
       example: null
     },
     {
       icon: Sparkles,
-      title: 'Get Your Magic Code',
-      description: 'You\'ll receive a unique code and shareable link to invite your friends and family.',
-      example: 'SANTA2024'
+      title: 'Get Your Event Link',
+      description: 'After creating your event, you\'ll receive a unique shareable link. Copy and share it with your friends and family!',
+      example: null
     },
     {
       icon: Share2,
       title: 'Share with Friends',
-      description: 'Send the code via WhatsApp, group chat, or email. Everyone can join with one simple code!',
+      description: 'Send the event link via WhatsApp, group chat, or email. Everyone can join by simply clicking the link!',
       example: null
     },
     {
@@ -75,14 +75,14 @@ const HowItWorksPage = () => {
     },
     {
       icon: Shuffle,
-      title: 'Do the Draw',
-      description: 'When everyone\'s ready, click \'Draw Names\' and the magic happens automatically!',
+      title: 'Run the Draw',
+      description: 'Once you have at least 2 participants, click \'Run Draw\' and the magic happens automatically! Everyone gets their match via email.',
       example: null
     },
     {
       icon: PartyPopper,
       title: 'Enjoy the Party',
-      description: 'Sit back, relax, and watch the joy unfold as everyone exchanges their surprise gifts!',
+      description: 'Sit back, relax, and watch the joy unfold as everyone exchanges their surprise gifts! After the event, everyone can see all pairings.',
       example: null
     }
   ];
@@ -97,12 +97,12 @@ const HowItWorksPage = () => {
       answer: 'Yes! ChrisCandle is completely free forever. Spread the holiday cheer without spending a penny on the platform!'
     },
     {
-      question: 'What if I lose my code?',
-      answer: 'No worries! Simply ask your event organizer to send it to you again. They can find it in their dashboard.'
+      question: 'What if I lose my event link?',
+      answer: 'No worries! Simply ask your event organizer to send you the link again. They can find it in their dashboard and share it with you.'
     },
     {
       question: 'Can I change my wishlist later?',
-      answer: 'Absolutely! Just visit the event again using the same code and update your wishlist anytime before the draw.'
+      answer: 'Absolutely! Just visit the event again using the same link and update your wishlist anytime before the draw.'
     },
     {
       question: 'When will I know who I\'m buying for?',
@@ -270,13 +270,6 @@ const HowItWorksPage = () => {
             >
               <Crown className="w-5 h-5" />
               Create Event
-            </Link>
-            <Link
-              to="/join"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-christmas-red-500/20 border border-christmas-red-500/40 text-snow-white font-body font-semibold rounded-full hover:bg-christmas-red-500/30 transition-all duration-300"
-            >
-              <Gift className="w-5 h-5" />
-              Join Event
             </Link>
           </div>
         </div>

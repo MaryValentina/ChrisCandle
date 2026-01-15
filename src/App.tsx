@@ -79,12 +79,7 @@ function App() {
         {/* Results */}
         <Route
           path="/results/:id"
-          element={
-            <div className="min-h-screen bg-gray-50">
-              <Navigation />
-              <ResultsPage />
-            </div>
-          }
+          element={<ResultsPage />}
         />
         
         {/* Test/Dev Routes */}

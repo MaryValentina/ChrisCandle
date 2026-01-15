@@ -6,6 +6,7 @@ interface ReEnterEmailModalProps {
   onSubmit: (email: string) => Promise<void>
   isSubmitting?: boolean
   error?: string | null
+  isOrganizer?: boolean
 }
 
 export default function ReEnterEmailModal({
@@ -14,6 +15,7 @@ export default function ReEnterEmailModal({
   onSubmit,
   isSubmitting = false,
   error,
+  isOrganizer = false,
 }: ReEnterEmailModalProps) {
   const [email, setEmail] = useState('')
 
@@ -34,7 +36,7 @@ export default function ReEnterEmailModal({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-display text-2xl md:text-3xl text-gradient-gold">
-              🔑 Re-enter Your Email
+              {isOrganizer ? '🔍 View Participant Match' : '🔑 Re-enter Your Email'}
             </h2>
             <button
               onClick={onClose}
@@ -59,7 +61,9 @@ export default function ReEnterEmailModal({
           </div>
 
           <p className="text-snow-white/70 mb-6">
-            Enter the email address you used to join this event to access your participant card.
+            {isOrganizer 
+              ? 'Enter a participant\'s email address to view their Secret Santa match.'
+              : 'Enter the email address you used to join this event to access your participant card.'}
           </p>
 
           {/* Form */}
@@ -104,7 +108,7 @@ export default function ReEnterEmailModal({
                 disabled={isSubmitting || !email.trim()}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-gold to-gold-light text-christmas-red-deep rounded-xl font-bold hover:scale-105 transition-transform shadow-gold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Checking...' : 'Access My Card'}
+                {isSubmitting ? 'Checking...' : isOrganizer ? 'View Match' : 'Access My Card'}
               </button>
             </div>
           </form>

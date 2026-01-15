@@ -12,6 +12,8 @@ export default function ResultsCard({
   assignment,
   receiver,
   onSendMessage,
+  isHighlighted = false,
+  showReceiverDetails = true,
 }: ResultsCardProps) {
   const [isRevealed, setIsRevealed] = useState(false)
 
@@ -70,56 +72,77 @@ export default function ResultsCard({
           <div className="mb-6">
             <div className="text-6xl md:text-8xl mb-4 animate-bounce">🎁</div>
             <h2 className="font-display text-3xl md:text-4xl text-gradient-gold mb-2">
-              You got...
+              {isHighlighted ? '🎯 Your Match!' : 'Match'}
             </h2>
-          </div>
-
-          {/* Receiver Name */}
-          <div className="mb-8">
-            <div className="inline-block px-8 py-4 bg-christmas-red-dark/60 backdrop-blur-md rounded-2xl shadow-gold-lg border-4 border-gold/60 transform hover:scale-105 transition-transform">
-              <h3 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
-                {receiver.name}!
-              </h3>
-              <div className="text-2xl">🎄</div>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          {receiver.email && (
-            <div className="mb-6 p-4 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
-              <div className="text-sm text-snow-white/60 mb-2 font-semibold">Contact Info:</div>
-              <div className="space-y-2">
-                {receiver.email && (
-                  <div className="flex items-center justify-center gap-2 text-gold">
-                    <span>📧</span>
-                    <a
-                      href={`mailto:${receiver.email}`}
-                      className="hover:text-gold-light transition-colors"
-                    >
-                      {receiver.email}
-                    </a>
-                  </div>
-                )}
+            {isHighlighted && (
+              <div className="mt-2 px-4 py-2 bg-gold/20 border border-gold/40 rounded-full inline-block">
+                <span className="text-gold font-semibold text-sm">This is your match!</span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Wishlist */}
-          {receiver.wishlist && receiver.wishlist.length > 0 && (
-            <div className="mb-6 p-6 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
-              <h4 className="font-display text-xl text-gradient-gold mb-4 flex items-center justify-center gap-2">
-                <span>🎁</span>
-                <span>Wishlist</span>
-              </h4>
-              <div className="space-y-2">
-                {receiver.wishlist.map((item, index) => (
-                  <div
-                    key={index}
-                    className="px-4 py-2 bg-gold/10 border border-gold/20 rounded-lg text-gold font-medium"
-                  >
-                    {item}
+          {/* Receiver Details - Only show if this is the user's match or showReceiverDetails is true */}
+          {showReceiverDetails && receiver ? (
+            <>
+              {/* Receiver Name */}
+              <div className="mb-8">
+                <div className="inline-block px-8 py-4 bg-christmas-red-dark/60 backdrop-blur-md rounded-2xl shadow-gold-lg border-4 border-gold/60 transform hover:scale-105 transition-transform">
+                  <h3 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
+                    {receiver.name}!
+                  </h3>
+                  <div className="text-2xl">🎄</div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              {receiver.email && (
+                <div className="mb-6 p-4 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
+                  <div className="text-sm text-snow-white/60 mb-2 font-semibold">Contact Info:</div>
+                  <div className="space-y-2">
+                    {receiver.email && (
+                      <div className="flex items-center justify-center gap-2 text-gold">
+                        <span>📧</span>
+                        <a
+                          href={`mailto:${receiver.email}`}
+                          className="hover:text-gold-light transition-colors"
+                        >
+                          {receiver.email}
+                        </a>
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Wishlist */}
+              {receiver.wishlist && receiver.wishlist.length > 0 && (
+                <div className="mb-6 p-6 bg-christmas-red-dark/40 border border-gold/20 rounded-xl backdrop-blur-sm">
+                  <h4 className="font-display text-xl text-gradient-gold mb-4 flex items-center justify-center gap-2">
+                    <span>🎁</span>
+                    <span>Wishlist</span>
+                  </h4>
+                  <div className="space-y-2">
+                    {receiver.wishlist.map((item, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-2 bg-gold/10 border border-gold/20 rounded-lg text-gold font-medium"
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="mb-8">
+              <div className="inline-block px-8 py-4 bg-christmas-red-dark/40 backdrop-blur-md rounded-2xl border-2 border-gold/30">
+                <p className="text-snow-white/60 text-lg">
+                  {isHighlighted ? 'Match details hidden' : '🔒 Match hidden'}
+                </p>
+                <p className="text-snow-white/40 text-sm mt-2">
+                  Only the participant can see their match
+                </p>
               </div>
             </div>
           )}

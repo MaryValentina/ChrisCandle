@@ -6,6 +6,7 @@ interface ParticipantCardProps {
   onEdit?: (participant: Participant) => void
   onDelete?: (id: string) => void
   showActions?: boolean
+  isMatch?: boolean
 }
 
 export default function ParticipantCard({
@@ -13,11 +14,19 @@ export default function ParticipantCard({
   onEdit,
   onDelete,
   showActions = true,
+  isMatch = false,
 }: ParticipantCardProps) {
   const [showWishlist, setShowWishlist] = useState(false)
 
   return (
-    <div className="bg-christmas-red-dark/40 backdrop-blur-sm rounded-xl shadow-gold border border-gold/20 hover:border-gold/40 transition-all duration-300 p-4 md:p-6 relative overflow-hidden">
+    <div className={`bg-christmas-red-dark/40 backdrop-blur-sm rounded-xl shadow-gold border transition-all duration-300 p-4 md:p-6 relative overflow-hidden ${
+      isMatch 
+        ? 'border-gold border-4 shadow-[0_0_30px_rgba(251,191,36,0.6)] scale-[1.02]' 
+        : 'border-gold/20 hover:border-gold/40'
+    }`}>
+      {isMatch && (
+        <div className="absolute -inset-1 bg-gradient-to-r from-gold via-gold-light to-gold rounded-xl blur-lg opacity-75 animate-pulse -z-10"></div>
+      )}
       {/* Christmas ornament top hook */}
       <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-8 bg-gold rounded-full border-2 border-gold/60"></div>
       
@@ -28,9 +37,16 @@ export default function ParticipantCard({
         {/* Name and Ready Status */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-xl md:text-2xl font-bold text-gold mb-1">
-              {participant.name}
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-xl md:text-2xl font-bold text-gold">
+                {participant.name}
+              </h3>
+              {isMatch && (
+                <span className="px-3 py-1 bg-gold/20 border border-gold/40 rounded-full text-xs font-semibold text-gold animate-pulse">
+                  🎯 Your Match!
+                </span>
+              )}
+            </div>
             {participant.isOrganizer && (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-christmas-gold-100 to-christmas-gold-200 text-christmas-gold-800 rounded-full text-xs font-semibold border border-christmas-gold-400">
@@ -42,20 +58,8 @@ export default function ParticipantCard({
           </div>
         </div>
 
-        {/* Contact Information */}
-        <div className="space-y-2 mb-4">
-          {participant.email && (
-            <div className="flex items-center gap-2 text-sm text-snow-white/70">
-              <span className="text-gold">📧</span>
-              <a
-                href={`mailto:${participant.email}`}
-                className="hover:text-gold transition-colors"
-              >
-                {participant.email}
-              </a>
-            </div>
-          )}
-        </div>
+        {/* Contact Information - Hidden for privacy */}
+        {/* Emails are hidden to prevent cheating - participants can only see their own match */}
 
         {/* Wishlist Preview */}
         {participant.wishlist && participant.wishlist.length > 0 && (

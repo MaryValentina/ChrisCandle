@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEvent, subscribeToEvent, updateEvent, deleteEvent, saveAssignments, getAssignments } from '../lib/firebase'
+import { getEvent, subscribeToEvent, updateEvent, deleteEvent, saveAssignments, getAssignments, updateParticipantWishlist } from '../lib/firebase'
 import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
@@ -29,7 +29,6 @@ import {
   X,
   Gift,
   Sparkles,
-  Mail,
   ListChecks,
   Download,
   Send,
@@ -54,6 +53,10 @@ export default function AdminPage() {
   const [showShareMessageModal, setShowShareMessageModal] = useState(false)
   const [shareMessage, setShareMessage] = useState('')
   const [shareMessageCopied, setShareMessageCopied] = useState(false)
+  const [showEditWishlistModal, setShowEditWishlistModal] = useState(false)
+  const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null)
+  const [wishlistText, setWishlistText] = useState('')
+  const [isEditingWishlist, setIsEditingWishlist] = useState(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const isEditingRef = useRef(false)
   
@@ -159,9 +162,16 @@ export default function AdminPage() {
   const handleRunDraw = async () => {
     if (!event) return
 
+    // Prevent running draw if already drawn
+    if (event.status === 'drawn' || event.status === 'completed') {
+      setError('Draw has already been completed for this event.')
+      return
+    }
+
     setIsRunningDraw(true)
+    setError(null)
     try {
-      // Generate assignments
+      // Generate assignments (algorithm ensures consistency)
       const assignmentMap = generateAssignments(event.participants, event.exclusions)
 
       // Convert to Assignment array
@@ -282,14 +292,17 @@ Looking forward to celebrating together!`
     const message = generateShareMessage()
     setShareMessage(message)
     setShowShareMessageModal(true)
+    setShareMessageCopied(false)
     
-    // Auto-copy to clipboard
-    navigator.clipboard.writeText(message).then(() => {
-      setShareMessageCopied(true)
-      setTimeout(() => setShareMessageCopied(false), 3000)
-    }).catch((err) => {
-      console.error('Failed to copy message:', err)
-    })
+    // Delay clipboard copy by 2 seconds to show the message first
+    setTimeout(() => {
+      navigator.clipboard.writeText(message).then(() => {
+        setShareMessageCopied(true)
+        setTimeout(() => setShareMessageCopied(false), 3000)
+      }).catch((err) => {
+        console.error('Failed to copy message:', err)
+      })
+    }, 2000)
   }
 
   const handleCopyShareMessage = async () => {
@@ -300,6 +313,47 @@ Looking forward to celebrating together!`
       setTimeout(() => setShareMessageCopied(false), 3000)
     } catch (err) {
       console.error('Failed to copy share message:', err)
+    }
+  }
+
+  const handleEditWishlist = (participantId: string) => {
+    if (!event) return
+    const participant = event.participants.find(p => p.id === participantId)
+    if (participant) {
+      setEditingParticipantId(participantId)
+      setWishlistText(participant.wishlist?.join('\n') || '')
+      setShowEditWishlistModal(true)
+    }
+  }
+
+  const handleSaveWishlist = async () => {
+    if (!event || !editingParticipantId) return
+
+    setIsEditingWishlist(true)
+    try {
+      // Split wishlist by newlines or commas
+      const wishlistItems = wishlistText
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+
+      await updateParticipantWishlist(event.id, editingParticipantId, wishlistItems)
+      
+      // Refresh event data
+      const updatedEvent = await getEvent(event.id)
+      if (updatedEvent) {
+        setEvent(updatedEvent)
+      }
+      
+      setShowEditWishlistModal(false)
+      setEditingParticipantId(null)
+      setWishlistText('')
+      setError(null)
+    } catch (err) {
+      console.error('Error updating wishlist:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update wishlist')
+    } finally {
+      setIsEditingWishlist(false)
     }
   }
 
@@ -573,7 +627,7 @@ Looking forward to celebrating together!`
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'active':
-        return { color: 'text-green-400', bg: 'bg-green-500/20', label: 'Open for participants' }
+        return { color: 'text-gold', bg: 'bg-gold/20', label: 'Open for participants' }
       case 'drawn':
         return { color: 'text-gold', bg: 'bg-gold/20', label: 'Assignments generated' }
       case 'completed':
@@ -687,14 +741,17 @@ Looking forward to celebrating together!`
                 <label htmlFor="editDate" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
                   Gift Exchange Date <span className="text-gold">*</span>
                 </label>
-                <input
-                  id="editDate"
-                  type="date"
-                  value={editFormData.date}
-                  onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
-                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    id="editDate"
+                    type="date"
+                    value={editFormData.date}
+                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                    className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body pr-10"
+                    required
+                  />
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold pointer-events-none" />
+                </div>
               </div>
               
               <div>
@@ -822,8 +879,8 @@ Looking forward to celebrating together!`
 
           {/* Share Message Modal */}
           {showShareMessageModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-christmas-red-dark/95 backdrop-blur-sm border-2 border-gold/40 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-gold-lg">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+              <div className="bg-christmas-red-dark/95 backdrop-blur-sm border-2 border-gold/40 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-gold-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-display text-2xl text-gradient-gold flex items-center gap-2">
                     <Send className="h-6 w-6" />
@@ -842,7 +899,9 @@ Looking forward to celebrating together!`
                 </div>
                 
                 <p className="text-snow-white/70 mb-4 text-sm">
-                  The message has been copied to your clipboard. You can edit it below before sending:
+                  {shareMessageCopied 
+                    ? '✅ Message copied to clipboard! You can edit it below before sending:'
+                    : 'The message will be copied to your clipboard in a moment. You can edit it below before sending:'}
                 </p>
                 
                 <div className="mb-4">
@@ -915,14 +974,10 @@ Looking forward to celebrating together!`
                         </span>
                       )}
                     </div>
-                    {participant.email ? (
-                      <div className="text-sm text-snow-white/60 mt-1 flex items-center gap-2 font-body">
-                        <Mail className="h-3 w-3" />
-                        {participant.email}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-snow-white/40 mt-1 font-body">No email provided</div>
-                    )}
+                    {/* Email hidden for privacy - organizer can use resend button if needed */}
+                    <div className="text-xs text-snow-white/40 mt-1 font-body">
+                      Email hidden for privacy
+                    </div>
                     {participant.wishlist && participant.wishlist.length > 0 && (
                       <div className="text-xs text-gold mt-1 flex items-center gap-2 font-body">
                         <ListChecks className="h-3 w-3" />
@@ -931,6 +986,17 @@ Looking forward to celebrating together!`
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* Edit Wishlist button - only show if event hasn't been drawn */}
+                    {event.status !== 'drawn' && event.status !== 'completed' && (
+                      <button
+                        onClick={() => handleEditWishlist(participant.id)}
+                        className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-colors"
+                        title="Edit wishlist"
+                        aria-label={`Edit wishlist for ${participant.name}`}
+                      >
+                        <ListChecks className="h-4 w-4" />
+                      </button>
+                    )}
                     {participant.email && (
                       <button
                         onClick={() => handleResendEmail(participant.id)}
@@ -987,7 +1053,7 @@ Looking forward to celebrating together!`
                 ) : (
                   <>
                     <Shuffle className="mr-2 h-5 w-5" />
-                    🎲 Start Draw
+                    Run Draw
                   </>
                 )}
               </Button>
@@ -1097,9 +1163,55 @@ Looking forward to celebrating together!`
         )}
       </main>
 
+      {/* Edit Wishlist Modal */}
+      {showEditWishlistModal && editingParticipantId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-gold/30 rounded-2xl shadow-gold-lg max-w-md w-full">
+            <div className="p-6 md:p-8">
+              <h2 className="font-display text-2xl text-gradient-gold mb-4">Edit Wishlist</h2>
+              <p className="text-snow-white/70 mb-4 text-sm">
+                Enter wishlist items, one per line or separated by commas.
+              </p>
+              
+              <textarea
+                value={wishlistText}
+                onChange={(e) => setWishlistText(e.target.value)}
+                placeholder="e.g., Books, Coffee, Art supplies"
+                rows={6}
+                className="w-full px-4 py-3 border-2 border-gold/30 rounded-xl bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:outline-none transition-colors resize-none"
+                disabled={isEditingWishlist}
+              />
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => {
+                    setShowEditWishlistModal(false)
+                    setEditingParticipantId(null)
+                    setWishlistText('')
+                  }}
+                  variant="outline"
+                  className="flex-1 border-gold/30 text-gold hover:bg-gold/10"
+                  disabled={isEditingWishlist}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveWishlist}
+                  disabled={isEditingWishlist}
+                  variant="hero"
+                  className="flex-1 shadow-gold"
+                >
+                  {isEditingWishlist ? 'Saving...' : 'Save Wishlist'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Event Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-destructive/30 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-gold-lg">
             <h3 className="font-display text-2xl text-destructive mb-4 flex items-center gap-2">
               <X className="h-6 w-6" />

@@ -705,7 +705,7 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Join/Status Section - Disabled if event is expired */}
+          {/* Join/Status Section - Disabled if event is expired, completed, or drawn */}
           {event.status === 'expired' || event.status === 'completed' ? (
             <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
               <div className="text-center">
@@ -716,6 +716,28 @@ export default function EventPage() {
                 <p className="text-snow-white/70 mb-6">
                   This event is no longer accepting new participants.
                 </p>
+              </div>
+            </div>
+          ) : event.status === 'drawn' && !currentParticipant ? (
+            <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
+              <div className="text-center">
+                <div className="text-5xl mb-4">🎁</div>
+                <h2 className="font-display text-2xl text-gradient-gold mb-4">
+                  Draw Complete
+                </h2>
+                <p className="text-snow-white/70 mb-6">
+                  The Secret Santa draw has been completed. If you were a participant, you can view your match by re-entering your email.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button
+                    onClick={() => setShowReEnterModal(true)}
+                    variant="outline"
+                    size="lg"
+                    className="border-gold/30 text-gold hover:bg-gold/10"
+                  >
+                    Re-enter Email to View Match
+                  </Button>
+                </div>
               </div>
             </div>
           ) : !currentParticipant ? (
@@ -883,6 +905,7 @@ export default function EventPage() {
         onSubmit={handleReEnterEmail}
         isSubmitting={isReEntering}
         error={reEnterError}
+        isOrganizer={false}
       />
 
       {/* Edit Wishlist Modal */}
