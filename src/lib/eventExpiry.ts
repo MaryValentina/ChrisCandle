@@ -151,9 +151,10 @@ export async function recreateEventForNextYear(
   nextYearDate.setFullYear(currentDate.getFullYear() + 1)
 
   const newEventData: Omit<import('../types').EventData, 'createdAt'> = {
-    code: '', // Will be generated
     name: `${event.name} ${nextYearDate.getFullYear()}`,
     date: nextYearDate.toISOString(),
+    time: event.time,
+    venue: event.venue,
     budget: event.budget,
     organizerId: event.organizerId,
     participants: [], // Start fresh

@@ -3,10 +3,11 @@ import type { FirestoreDate } from '../types'
 
 interface CountdownTimerProps {
   eventDate: FirestoreDate
+  eventTime?: string // Time in HH:mm format (e.g., "18:00")
   className?: string
 }
 
-export default function CountdownTimer({ eventDate, className = '' }: CountdownTimerProps) {
+export default function CountdownTimer({ eventDate, eventTime, className = '' }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{
     days: number
     hours: number
@@ -17,7 +18,29 @@ export default function CountdownTimer({ eventDate, className = '' }: CountdownT
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const date = typeof eventDate === 'string' ? new Date(eventDate) : eventDate
+      // Parse the date
+      let date: Date
+      if (typeof eventDate === 'string') {
+        // Handle YYYY-MM-DD format strings
+        if (eventDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = eventDate.split('-').map(Number)
+          date = new Date(year, month - 1, day)
+        } else {
+          date = new Date(eventDate)
+        }
+      } else {
+        date = eventDate
+      }
+
+      // If eventTime is provided, combine date and time
+      if (eventTime) {
+        const [hours, minutes] = eventTime.split(':').map(Number)
+        date.setHours(hours, minutes || 0, 0, 0)
+      } else {
+        // Default to end of day if no time specified
+        date.setHours(23, 59, 59, 999)
+      }
+
       const now = new Date()
       const difference = date.getTime() - now.getTime()
 
@@ -49,7 +72,7 @@ export default function CountdownTimer({ eventDate, className = '' }: CountdownT
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [eventDate])
+  }, [eventDate, eventTime])
 
   if (!timeLeft) {
     return null

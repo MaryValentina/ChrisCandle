@@ -323,7 +323,6 @@ export function convertFirestoreEvent(data: any, id: string): Event {
 
     const convertedEvent: Event = {
       id,
-      code: data.code || '', // TODO: Generate code if missing
       name: data.name || 'Unnamed Event',
       date: data.date ? (() => {
         // Convert Firestore timestamp to date string preserving the original date
@@ -434,6 +433,8 @@ export function convertFirestoreEvent(data: any, id: string): Event {
         console.warn('⚠️ Using today as fallback - this should not happen!')
         return new Date().toISOString().split('T')[0]
       })(),
+      time: data.time || '',
+      venue: data.venue || '',
       budget: data.budget,
       budgetCurrency: data.budgetCurrency,
       organizerId: data.organizerId || '',
@@ -467,6 +468,8 @@ export function convertFirestoreEvent(data: any, id: string): Event {
       name: convertedEvent.name,
       date: convertedEvent.date,
       dateType: typeof convertedEvent.date,
+      time: convertedEvent.time,
+      venue: convertedEvent.venue,
       budget: convertedEvent.budget,
       budgetCurrency: convertedEvent.budgetCurrency,
       participants: convertedEvent.participants.length,
@@ -529,15 +532,6 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     }
 
     const now = new Date().toISOString()
-    // Generate a simple code if not provided (6 alphanumeric characters)
-    const generateCode = () => {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-      let code = ''
-      for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length))
-      }
-      return code
-    }
 
     // Add organizer as participant only if email/name are provided
     let allParticipants = [...eventData.participants]
@@ -580,7 +574,6 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     
     const eventDoc: Omit<EventData, 'id'> = {
       ...eventData,
-      code: eventData.code || generateCode(),
       date: eventData.date, // Keep as-is (string or Date), toFirestoreTimestamp will handle conversion
       participants: allParticipants.map(p => {
         const participant: any = {
@@ -602,8 +595,9 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     // Convert dates to Firestore Timestamps and prepare data
     const firestoreDataRaw: any = {
       name: eventDoc.name,
-      code: eventDoc.code,
       date: toFirestoreTimestamp(eventDoc.date),
+      time: eventDoc.time,
+      venue: eventDoc.venue,
       organizerId: eventDoc.organizerId,
       status: eventDoc.status,
       createdAt: serverTimestamp(),
@@ -644,12 +638,13 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     // Debug: Log what we're saving
     console.log('💾 Saving event to Firestore:', {
       name: firestoreData.name,
-      code: firestoreData.code,
       originalDate: eventDoc.date,
       dateType: typeof eventDoc.date,
       dateTimestamp: firestoreData.date,
       dateTimestampSeconds: firestoreData.date?.seconds,
       dateTimestampNanoseconds: firestoreData.date?.nanoseconds,
+      time: firestoreData.time,
+      venue: firestoreData.venue,
       budget: firestoreData.budget,
       budgetCurrency: firestoreData.budgetCurrency,
       organizerId: firestoreData.organizerId,
@@ -751,56 +746,17 @@ export async function getEvent(eventId: string): Promise<Event | null> {
 }
 
 /**
- * Fetch an event by code from Firestore
+ * @deprecated Use getEvent(eventId) instead. This function is kept for backward compatibility only.
+ * Fetch an event by code from Firestore (legacy - events no longer use codes)
  * 
- * @param code - The event code (e.g., "ABC123")
+ * @param code - The event code (legacy - will be treated as event ID)
  * @returns Promise that resolves to the Event object, or null if not found
  * @throws Error if Firebase is not configured or fetch fails
  */
 export async function getEventByCode(code: string): Promise<Event | null> {
-  try {
-    const db = getDb()
-    if (!db) {
-      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
-    }
-
-    console.log('🔍 Fetching event by code from Firebase:', code)
-    const eventsRef = collection(db, 'events')
-    const q = query(eventsRef, where('code', '==', code.toUpperCase().trim()), limit(1))
-    const querySnapshot = await getDocs(q)
-
-    if (querySnapshot.empty) {
-      console.log(`⚠️ Event with code ${code} not found in Firestore`)
-      return null
-    }
-
-    const eventDoc = querySnapshot.docs[0]
-    const eventData = eventDoc.data()
-    
-    console.log('📦 Raw Firestore data:', {
-      id: eventDoc.id,
-      code: eventData?.code,
-      name: eventData?.name,
-      participantsCount: eventData?.participants?.length || 0,
-      status: eventData?.status,
-    })
-    
-    const event = convertFirestoreEvent(eventData, eventDoc.id)
-    
-    console.log('✅ Event converted successfully:', {
-      id: event.id,
-      code: event.code,
-      name: event.name,
-      participantsCount: event.participants.length,
-      status: event.status,
-    })
-    
-    return event
-  } catch (error) {
-    console.error('❌ Error fetching event by code:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    throw new Error(`Failed to fetch event by code: ${errorMessage}`)
-  }
+  // For backward compatibility, treat code as event ID
+  console.warn('⚠️ getEventByCode is deprecated. Use getEvent(eventId) instead.')
+  return getEvent(code)
 }
 
 /**
@@ -828,10 +784,11 @@ export async function updateEvent(
 
     // Add fields only if they are defined
     if (updates.name !== undefined) updateDataRaw.name = updates.name
-    if (updates.code !== undefined) updateDataRaw.code = updates.code
     if (updates.date !== undefined) {
       updateDataRaw.date = toFirestoreTimestamp(updates.date)
     }
+    if (updates.time !== undefined) updateDataRaw.time = updates.time
+    if (updates.venue !== undefined) updateDataRaw.venue = updates.venue
     if (updates.organizerId !== undefined) updateDataRaw.organizerId = updates.organizerId
     if (updates.status !== undefined) updateDataRaw.status = updates.status
     if (updates.budget !== undefined && updates.budget !== null) {
@@ -879,6 +836,7 @@ export async function updateEvent(
 
 /**
  * Delete an event from Firestore
+ * Also deletes the assignments subcollection if it exists
  * 
  * @param eventId - The event document ID
  * @returns Promise that resolves when event is deleted
@@ -891,9 +849,26 @@ export async function deleteEvent(eventId: string): Promise<void> {
       throw new Error('Firebase is not configured. Please set Firebase environment variables.')
     }
 
-    const eventRef = doc(db, 'events', eventId)
-    
+    // First, delete all assignments in the subcollection (if any)
+    try {
+      const assignmentsRef = collection(db, 'events', eventId, 'assignments')
+      const assignmentsSnapshot = await getDocs(assignmentsRef)
+      
+      if (!assignmentsSnapshot.empty) {
+        const batch = writeBatch(db)
+        assignmentsSnapshot.forEach((assignmentDoc) => {
+          batch.delete(assignmentDoc.ref)
+        })
+        await batch.commit()
+        console.log(`✅ Deleted ${assignmentsSnapshot.size} assignment(s) for event:`, eventId)
+      }
+    } catch (assignmentsError) {
+      // If assignments subcollection doesn't exist or deletion fails, continue with event deletion
+      console.warn('⚠️ Could not delete assignments subcollection:', assignmentsError)
+    }
+
     // Delete the event document
+    const eventRef = doc(db, 'events', eventId)
     await deleteDoc(eventRef)
     
     console.log('✅ Event deleted:', eventId)
@@ -994,6 +969,91 @@ export async function addParticipant(eventId: string, participant: ParticipantDa
     console.error('❌ Error adding participant:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     throw new Error(`Failed to add participant: ${errorMessage}`)
+  }
+}
+
+/**
+ * Update a participant's wishlist in an event
+ * 
+ * @param eventId - The event document ID
+ * @param participantId - The participant ID
+ * @param wishlist - The new wishlist array
+ * @returns Promise that resolves when wishlist is updated
+ * @throws Error if Firebase is not configured or update fails
+ */
+export async function updateParticipantWishlist(eventId: string, participantId: string, wishlist: string[]): Promise<void> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    // Get the current event
+    const event = await getEvent(eventId)
+    if (!event) {
+      throw new Error(`Event ${eventId} not found`)
+    }
+
+    // Find the participant
+    const participantIndex = event.participants.findIndex((p) => p.id === participantId)
+    if (participantIndex === -1) {
+      throw new Error(`Participant ${participantId} not found in event`)
+    }
+
+    // Update the participant's wishlist
+    const updatedParticipants = [...event.participants]
+    updatedParticipants[participantIndex] = {
+      ...updatedParticipants[participantIndex],
+      wishlist: wishlist.length > 0 ? wishlist : undefined,
+    }
+
+    // Update the event with the modified participant
+    await updateEvent(eventId, {
+      participants: updatedParticipants,
+    })
+
+    console.log('✅ Participant wishlist updated:', eventId, participantId)
+  } catch (error) {
+    console.error('❌ Error updating participant wishlist:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to update wishlist: ${errorMessage}`)
+  }
+}
+
+/**
+ * Remove a participant from an event
+ * 
+ * @param eventId - The event document ID
+ * @param participantId - The participant ID to remove
+ * @returns Promise that resolves when participant is removed
+ * @throws Error if Firebase is not configured or removal fails
+ */
+export async function removeParticipant(eventId: string, participantId: string): Promise<void> {
+  try {
+    const db = getDb()
+    if (!db) {
+      throw new Error('Firebase is not configured. Please set Firebase environment variables.')
+    }
+
+    // Get the current event
+    const event = await getEvent(eventId)
+    if (!event) {
+      throw new Error(`Event ${eventId} not found`)
+    }
+
+    // Remove the participant from the array
+    const updatedParticipants = event.participants.filter((p) => p.id !== participantId)
+
+    // Update the event with the modified participants array
+    await updateEvent(eventId, {
+      participants: updatedParticipants,
+    })
+
+    console.log('✅ Participant removed from event:', eventId, participantId)
+  } catch (error) {
+    console.error('❌ Error removing participant:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to remove participant: ${errorMessage}`)
   }
 }
 

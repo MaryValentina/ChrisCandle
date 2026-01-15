@@ -27,25 +27,17 @@ function App() {
         
         {/* Event Routes (Public) */}
         <Route
-          path="/event/:code"
-          element={
-            <div className="min-h-screen bg-gray-50">
-              <Navigation />
-              <EventPage />
-            </div>
-          }
+          path="/event/:id"
+          element={<EventPage />}
         />
         
         {/* Protected Organizer Routes */}
         <Route
-          path="/event/:code/admin"
+          path="/event/:id/admin"
           element={
-            <div className="min-h-screen bg-gray-50">
-              <Navigation />
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            </div>
+            <ProtectedRoute>
+              <AdminPage />
+            </ProtectedRoute>
           }
         />
         <Route
@@ -86,7 +78,7 @@ function App() {
         
         {/* Results */}
         <Route
-          path="/results/:code"
+          path="/results/:id"
           element={
             <div className="min-h-screen bg-gray-50">
               <Navigation />

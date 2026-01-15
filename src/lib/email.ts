@@ -27,8 +27,9 @@ interface WelcomeEmailData {
   participantEmail: string
   participantName: string
   eventName: string
-  eventCode: string
   eventDate: string
+  eventTime: string
+  eventVenue: string
   eventLink: string
 }
 
@@ -57,7 +58,6 @@ interface OrganizerNotificationEmailData {
   participantName: string
   participantEmail: string
   eventName: string
-  eventCode: string
   totalParticipants: number
   eventLink: string
 }
@@ -226,21 +226,22 @@ function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         <h1 style="color: #ffd700; margin: 0; font-size: 32px;">🎄 ChrisCandle</h1>
       </div>
       <div style="background: #ffffff; padding: 30px; border: 2px solid #990000; border-top: none; border-radius: 0 0 10px 10px;">
-        <h2 style="color: #990000; margin-top: 0;">Welcome to ${data.eventName}, ${data.participantName}!</h2>
-        <p>Great news! You've successfully joined the Secret Santa event:</p>
+        <h2 style="color: #990000; margin-top: 0;">Hi ${data.participantName},</h2>
+        <p>You've successfully joined the Secret Santa event:</p>
         <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #990000;">
-          <strong style="color: #990000; font-size: 18px;">${data.eventName}</strong>
-          <p style="margin: 10px 0 0 0; color: #666;">📅 Exchange Date: ${new Date(data.eventDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>🎄 Event:</strong> ${data.eventName}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>📅 Date:</strong> ${new Date(data.eventDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>🕒 Time:</strong> ${data.eventTime}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>📍 Venue:</strong> ${data.eventVenue}</p>
         </div>
-        <p>Your event code is: <strong style="font-size: 20px; color: #990000; font-family: monospace;">${data.eventCode}</strong></p>
-        <p>You can view the event and check your status anytime:</p>
+        <p>You'll receive another email once the draw is complete with your assigned pair.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${data.eventLink}" style="display: inline-block; background: #228B22; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
             View Event
           </a>
         </div>
         <p style="color: #666; font-size: 14px; margin-top: 30px;">
-          We'll notify you when the draw happens and reveal your Secret Santa match! 🎁
+          Happy gifting! 🎁
         </p>
         <p style="color: #666; font-size: 14px;">
           Happy Holidays! 🎄
@@ -417,7 +418,7 @@ export async function sendWelcomeEmail(data: WelcomeEmailData): Promise<void> {
     const html = generateWelcomeEmailHTML(data)
     await sendEmail({
       to: data.participantEmail,
-      subject: `Welcome to ${data.eventName}! 🎄`,
+      subject: `You've successfully joined ${data.eventName}!`,
       html,
     })
     console.log('✅ Welcome email sent to:', data.participantEmail)
@@ -493,15 +494,18 @@ export async function sendParticipantConfirmationEmail(
   participantEmail: string,
   participantName: string,
   eventName: string,
-  eventCode: string
+  eventDate: string,
+  eventTime: string,
+  eventVenue: string,
+  eventLink: string
 ): Promise<void> {
-  const eventLink = `${window.location.origin}/event/${eventCode}`
   await sendWelcomeEmail({
     participantEmail,
     participantName,
     eventName,
-    eventCode,
-    eventDate: new Date().toISOString(), // Fallback date
+    eventDate,
+    eventTime,
+    eventVenue,
     eventLink,
   })
 }

@@ -344,7 +344,7 @@ const OrganizerDashboard = () => {
           {events.map((event) => (
             <Link
               key={event.id}
-              to={`/event/${event.code}/admin`}
+              to={`/event/${event.id}/admin`}
               className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl p-6 hover:border-gold/40 hover:shadow-gold transition-all duration-300 group cursor-pointer flex flex-col"
             >
               {/* Event Header */}
@@ -359,7 +359,15 @@ const OrganizerDashboard = () => {
               <div className="space-y-3 text-snow-white/80 text-sm mb-4 flex-1">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gold flex-shrink-0" />
-                  <span className="font-medium">{format(new Date(event.date), 'MMM d, yyyy')}</span>
+                  <span className="font-medium">{(() => {
+                    // Handle YYYY-MM-DD format strings correctly
+                    if (typeof event.date === 'string' && event.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      const [year, month, day] = event.date.split('-').map(Number)
+                      const date = new Date(year, month - 1, day)
+                      return format(date, 'MMM d, yyyy')
+                    }
+                    return format(new Date(event.date), 'MMM d, yyyy')
+                  })()}</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -373,17 +381,10 @@ const OrganizerDashboard = () => {
                 {event.budget && (
                   <div className="flex items-center gap-2">
                     <span className="text-gold">💰</span>
-                    <span>Budget: <span className="font-semibold">${event.budget}</span></span>
+                    <span>Budget: <span className="font-semibold">{event.budgetCurrency || 'USD'} {event.budget}</span></span>
                   </div>
                 )}
                 
-                {/* Event Code */}
-                <div className="pt-3 border-t border-gold/20 mt-3">
-                  <div className="flex items-center gap-2">
-                    <Copy className="h-3 w-3 text-gold/70 flex-shrink-0" />
-                    <span className="font-mono text-xs text-gold/90">Code: {event.code}</span>
-                  </div>
-                </div>
               </div>
 
               {/* Status Badge */}

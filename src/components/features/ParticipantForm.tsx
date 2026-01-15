@@ -13,7 +13,6 @@ interface FormData {
   name: string
   email: string
   wishlist: string
-  isReady: boolean
 }
 
 export default function ParticipantForm({
@@ -37,7 +36,6 @@ export default function ParticipantForm({
       name: initialData?.name || '',
       email: initialData?.email || '',
       wishlist: '',
-      isReady: initialData?.isReady || false,
     },
   })
 
@@ -57,7 +55,7 @@ export default function ParticipantForm({
       name: data.name,
       email: data.email || undefined,
       wishlist: wishlistItems.length > 0 ? wishlistItems : undefined,
-      isReady: data.isReady,
+      isReady: true, // Participants are automatically ready when added
     }
 
     onSubmit(participant as Omit<Participant, 'id'>)
@@ -177,18 +175,6 @@ export default function ParticipantForm({
           )}
         </div>
 
-        {/* Ready Status */}
-        <div className="flex items-center gap-3">
-          <input
-            id="isReady"
-            type="checkbox"
-            {...register('isReady')}
-            className="w-5 h-5 text-christmas-green-500 rounded focus:ring-christmas-green-500"
-          />
-          <label htmlFor="isReady" className="text-sm font-semibold text-snow-white">
-            Mark as ready
-          </label>
-        </div>
       </div>
 
       {/* Form Actions */}

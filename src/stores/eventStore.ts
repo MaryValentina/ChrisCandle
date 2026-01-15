@@ -99,7 +99,6 @@ export const useEventStore = create<EventStore>()(
         const newEvent: Event = {
           ...eventData,
           id: generateEventId(),
-          code: eventData.code || '', // TODO: Generate code
           status: 'active',
           participants: [],
           createdAt: new Date().toISOString(),
@@ -131,7 +130,6 @@ export const useEventStore = create<EventStore>()(
         const participants = updatedEvent.participants || []
         const canRunDraw = 
           participants.length >= 2 &&
-          participants.every(p => p.isReady) &&
           updatedEvent.status !== 'drawn' &&
           updatedEvent.status !== 'completed'
 
@@ -180,7 +178,6 @@ export const useEventStore = create<EventStore>()(
         const updatedParticipants = [...currentEvent.participants, newParticipant]
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
-          updatedParticipants.every(p => p.isReady) &&
           currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
@@ -217,7 +214,6 @@ export const useEventStore = create<EventStore>()(
 
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
-          updatedParticipants.every(p => p.isReady) &&
           currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
@@ -248,7 +244,6 @@ export const useEventStore = create<EventStore>()(
 
         const canRunDraw = 
           updatedParticipants.length >= 2 &&
-          updatedParticipants.every(p => p.isReady) &&
           currentEvent.status !== 'drawn' &&
           currentEvent.status !== 'completed'
 
@@ -397,7 +392,6 @@ export const useEventStore = create<EventStore>()(
         const participants = updatedEvent.participants || []
         const canRunDraw = 
           participants.length >= 2 &&
-          participants.every(p => p.isReady) &&
           newStatus === 'active'
 
         set({

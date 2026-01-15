@@ -8,23 +8,20 @@ import { Label } from '../components/ui/label'
 
 export default function JoinPage() {
   const navigate = useNavigate()
-  const [code, setCode] = useState('')
+  const [eventId, setEventId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!code.trim()) {
-      setError('Please enter an event code')
+    if (!eventId.trim()) {
+      setError('Please enter an event ID')
       return
     }
 
-    // Normalize code (uppercase, trim)
-    const normalizedCode = code.toUpperCase().trim()
-    
-    // Redirect to event page with code
-    navigate(`/event/${normalizedCode}`)
+    // Redirect to event page with ID
+    navigate(`/event/${eventId.trim()}`)
   }
 
   return (
@@ -47,23 +44,22 @@ export default function JoinPage() {
               🎄 Join Secret Santa
             </h1>
             <p className="text-snow-white/70">
-              Enter the event code you received from your organizer
+              Enter the event ID from the link shared by your organizer
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="code" className="block text-sm font-semibold text-snow-white mb-2">
-                Event Code <span className="text-gold">*</span>
+              <Label htmlFor="eventId" className="block text-sm font-semibold text-snow-white mb-2">
+                Event ID <span className="text-gold">*</span>
               </Label>
               <Input
-                id="code"
+                id="eventId"
                 type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="ABC123"
-                maxLength={10}
-                className={`w-full text-center text-2xl font-bold tracking-widest ${
+                value={eventId}
+                onChange={(e) => setEventId(e.target.value.trim())}
+                placeholder="Enter event ID"
+                className={`w-full text-center ${
                   error
                     ? 'border-red-400'
                     : 'border-gold/30 focus:border-gold'

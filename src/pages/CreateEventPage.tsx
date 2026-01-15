@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
-import { Calendar, Gift, Copy, CheckCircle2 } from 'lucide-react';
+import { Calendar, Gift } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { createEvent as createFirebaseEvent } from '../lib/firebase';
 import type { EventData } from '../types';
@@ -15,15 +15,15 @@ const CreateEventPage = () => {
   const navigate = useNavigate();
   const { organizerId, organizerName, currentUser } = useAuth();
   const [step, setStep] = useState(1);
-  const [eventCode, setEventCode] = useState('');
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
     date: '',
+    time: '',
+    venue: '',
     budget: '',
     budgetCurrency: 'USD',
     description: '',
@@ -39,24 +39,13 @@ const CreateEventPage = () => {
       if (!organizerId) {
         throw new Error('You must be logged in to create an event');
       }
-
-      // Generate event code
-      const generateCode = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = '';
-        for (let i = 0; i < 6; i++) {
-          code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return code;
-      };
-
-      const code = generateCode();
       
-      // Prepare event data for Firebase
+      // Prepare event data for Firebase (no code needed - Firestore will generate ID)
       const eventData: Omit<EventData, 'createdAt'> = {
         name: formData.name,
-        code: code,
         date: formData.date,
+        time: formData.time,
+        venue: formData.venue,
         budget: formData.budget ? Number(formData.budget) : undefined,
         budgetCurrency: formData.budgetCurrency || undefined,
         description: formData.description,
@@ -67,13 +56,13 @@ const CreateEventPage = () => {
       };
 
       // Save to Firebase (organizer will be added as participant if checkbox is checked)
+      // Firestore will auto-generate the document ID
       const eventId = await createFirebaseEvent(
         eventData,
         joinAsParticipant ? (currentUser?.email || undefined) : undefined,
         joinAsParticipant ? (organizerName || currentUser?.displayName || undefined) : undefined
       );
       
-      setEventCode(code);
       setCreatedEventId(eventId);
       setStep(2);
     } catch (error) {
@@ -84,11 +73,6 @@ const CreateEventPage = () => {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(eventCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -111,27 +95,10 @@ const CreateEventPage = () => {
                   ? 'bg-gold text-christmas-red-deep shadow-gold' 
                   : 'bg-christmas-red-dark/50 text-snow-white/50'
               }`}>
-                1
+                {step >= 2 ? '✓' : '1'}
               </div>
               <span className={`text-sm mt-2 ${step >= 1 ? 'text-gold' : 'text-snow-white/50'}`}>
-                Event Details
-              </span>
-            </div>
-            
-            <div className={`h-1 w-24 md:w-32 rounded-full transition-all ${
-              step >= 2 ? 'bg-gold' : 'bg-christmas-red-dark/50'
-            }`} />
-            
-            <div className="flex flex-col items-center">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all ${
-                step >= 2 
-                  ? 'bg-gold text-christmas-red-deep shadow-gold' 
-                  : 'bg-christmas-red-dark/50 text-snow-white/50'
-              }`}>
-                2
-              </div>
-              <span className={`text-sm mt-2 ${step >= 2 ? 'text-gold' : 'text-snow-white/50'}`}>
-                Share Code
+                {step >= 2 ? 'Complete' : 'Event Details'}
               </span>
             </div>
           </div>
@@ -190,6 +157,35 @@ const CreateEventPage = () => {
                       />
                       <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold/50 pointer-events-none" />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="time" className="text-snow-white">
+                      Time <span className="text-gold">*</span>
+                    </Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={formData.time}
+                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                      required
+                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="venue" className="text-snow-white">
+                      Venue <span className="text-gold">*</span>
+                    </Label>
+                    <Input
+                      id="venue"
+                      type="text"
+                      placeholder="e.g., Community Center, 123 Main St"
+                      value={formData.venue}
+                      onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
+                      required
+                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -266,7 +262,7 @@ const CreateEventPage = () => {
                     {isSaving ? (
                       'Creating Event...'
                     ) : (
-                      'Create Event & Get Code →'
+                      'Create Event →'
                     )}
                   </Button>
                 </form>
@@ -282,65 +278,31 @@ const CreateEventPage = () => {
                   Event Created Successfully! 🎉
                 </h2>
                 <p className="text-snow-white/70 mb-8">
-                  Share this code with your participants to join the fun!
+                  You have successfully created your event.
                 </p>
-
-                <div className="bg-christmas-red-deep/60 border-2 border-gold/40 rounded-2xl p-6 mb-6 max-w-sm mx-auto">
-                  <p className="text-snow-white/70 text-sm mb-2">Your Event Code</p>
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="font-display text-4xl text-gold tracking-widest">
-                      {eventCode}
-                    </span>
-                    <button
-                      onClick={copyToClipboard}
-                      className="p-2 rounded-lg bg-gold/20 hover:bg-gold/30 transition-colors"
-                    >
-                      {copied ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-400" />
-                      ) : (
-                        <Copy className="h-5 w-5 text-gold" />
-                      )}
-                    </button>
-                  </div>
-                  {copied && (
-                    <p className="text-green-400 text-sm mt-2 animate-fade-in">
-                      Copied to clipboard!
-                    </p>
-                  )}
-                </div>
 
                 <div className="flex flex-col gap-3 justify-center max-w-sm mx-auto">
                   {createdEventId && (
                     <Button 
                       variant="hero"
-                      onClick={() => navigate(`/event/${eventCode}/admin`)}
+                      onClick={() => navigate(`/event/${createdEventId}/admin`)}
                       className="shadow-gold w-full"
                     >
                       View Event
                     </Button>
                   )}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button 
-                      variant="outline"
-                      onClick={() => navigate('/my-events')}
-                      className="flex-1 border-gold/40 text-gold hover:bg-gold/10"
-                    >
-                      View My Events
-                    </Button>
-                    <Button 
-                      variant="outline"
+                  <Button 
+                    variant="outline"
                       onClick={() => {
                         setStep(1);
-                        setFormData({ name: '', date: '', budget: '', budgetCurrency: 'USD', description: '' });
+                        setFormData({ name: '', date: '', time: '', venue: '', budget: '', budgetCurrency: 'USD', description: '' });
                         setJoinAsParticipant(true);
-                        setEventCode('');
                         setCreatedEventId(null);
                       }}
-                      className="flex-1 border-gold/40 text-gold hover:bg-gold/10"
-                    >
-                      Create Another
-                    </Button>
-                  </div>
+                    className="border-gold/40 text-gold hover:bg-gold/10"
+                  >
+                    Create Another
+                  </Button>
                 </div>
               </div>
             )}

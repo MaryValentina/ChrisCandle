@@ -62,7 +62,7 @@ export async function sendRemindersToParticipants(
   reminderType: 'week' | 'day'
 ): Promise<void> {
   const daysUntil = reminderType === 'week' ? 7 : 1
-  const eventLink = `${window.location.origin}/event/${event.code}`
+  const eventLink = `${window.location.origin}/event/${event.id}`
 
   const emailPromises = event.participants
     .filter((p) => p.email) // Only send to participants with emails

@@ -41,7 +41,6 @@ export default function EventCard({
 
   const canStartDraw =
     event.participants.length >= 2 &&
-    event.participants.every(p => p.isReady) &&
     event.status !== 'drawn' &&
     event.status !== 'completed' &&
     event.status !== 'expired'
@@ -126,8 +125,6 @@ export default function EventCard({
             <div className="flex-1 px-4 py-2 bg-gray-300 text-gray-600 rounded-lg font-semibold text-center text-sm">
               {event.participants.length < 2
                 ? 'Need 2+ participants'
-                : !event.participants.every(p => p.isReady)
-                ? 'All participants must be ready'
                 : 'Draw already completed'}
             </div>
           )}

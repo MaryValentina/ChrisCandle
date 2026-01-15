@@ -87,6 +87,7 @@ export const AnalyticsEvents = {
   // Participants
   PARTICIPANT_JOINED: 'participant_joined',
   PARTICIPANT_REENTERED: 'participant_reentered',
+  PARTICIPANT_LEFT: 'participant_left',
   
   // Draw
   DRAW_STARTED: 'draw_started',

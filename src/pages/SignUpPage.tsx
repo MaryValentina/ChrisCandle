@@ -84,14 +84,14 @@ export default function SignUpPage() {
         {/* Glowing background effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-gold/10 via-transparent to-gold/5 rounded-3xl blur-xl" />
         
-        <div className="relative bg-christmas-red-dark/60 backdrop-blur-xl rounded-3xl p-6 md:p-7 border border-gold/20 shadow-gold-lg">
+        <div className="relative bg-christmas-red-dark/60 backdrop-blur-xl rounded-3xl p-8 md:p-10 border border-gold/20 shadow-gold-lg">
           {/* Header */}
-          <div className="text-center mb-5">
-            <h1 className="font-display text-2xl md:text-3xl text-gradient-gold mb-2">
-              Join the Magic
+          <div className="text-center mb-8">
+            <h1 className="font-display text-3xl md:text-4xl text-gradient-gold mb-4">
+              Welcome to ChrisCandle
             </h1>
-            <p className="text-snow-white/70 font-body text-xs">
-              Create your account & join the celebration 🎄
+            <p className="text-snow-white/70 font-body text-sm">
+              New to ChrisCandle? Join the party! 🎉
             </p>
           </div>
 
@@ -179,12 +179,12 @@ export default function SignUpPage() {
           </form>
 
           {/* Toggle */}
-          <div className="mt-5 text-center">
-            <p className="text-christmas-red-900 font-body text-xs">
+          <div className="mt-8 text-center">
+            <p className="text-snow-white/70 font-body text-sm">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="ml-2 text-christmas-red-900 font-bold hover:text-christmas-red-700 transition-colors duration-300 hover:underline underline-offset-4"
+                className="ml-2 text-gold font-bold hover:text-gold-light transition-colors duration-300 hover:underline underline-offset-4"
               >
                 Sign in
               </Link>
@@ -192,10 +192,10 @@ export default function SignUpPage() {
           </div>
 
           {/* Back to Home */}
-          <div className="mt-4 text-center">
+          <div className="mt-6 text-center">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-christmas-red-900/70 hover:text-christmas-red-900 font-body text-sm transition-colors duration-300"
+              className="inline-flex items-center gap-2 text-gold/70 hover:text-gold font-body text-sm transition-colors duration-300"
             >
               <span>←</span>
               <span>Back to Home</span>

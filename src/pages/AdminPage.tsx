@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, updateEvent, deleteEvent, saveAssignments, getAssignments } from '../lib/firebase'
+import { getEvent, subscribeToEvent, updateEvent, deleteEvent, saveAssignments, getAssignments } from '../lib/firebase'
 import { useEventStore } from '../stores/eventStore'
 import { useAuth } from '../contexts/AuthContext'
 import { generateAssignments } from '../lib/shuffle'
@@ -12,6 +12,7 @@ import { checkAndExpireEvent } from '../lib/eventExpiry'
 import Navbar from '../components/Navbar'
 import Snowflakes from '../components/Snowflakes'
 import { Button } from '../components/ui/button'
+import { Textarea } from '../components/ui/textarea'
 import { 
   ArrowLeft, 
   Copy, 
@@ -37,7 +38,7 @@ import type { Event } from '../types'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { code } = useParams<{ code: string }>()
+  const { id } = useParams<{ id: string }>()
   const { runDraw: runDrawInStore } = useEventStore()
   const { organizerId } = useAuth()
 
@@ -49,24 +50,33 @@ export default function AdminPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState<string | null>(null)
+  const [showShareMessageModal, setShowShareMessageModal] = useState(false)
+  const [shareMessage, setShareMessage] = useState('')
+  const [shareMessageCopied, setShareMessageCopied] = useState(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
+  const isEditingRef = useRef(false)
   
   // Edit form state
   const [editFormData, setEditFormData] = useState({
     name: '',
     date: '',
+    time: '',
+    venue: '',
     budget: '',
     budgetCurrency: 'USD',
     description: '',
   })
 
+  // Sync isEditing ref with state
+  useEffect(() => {
+    isEditingRef.current = isEditing
+  }, [isEditing])
+
   // Fetch event and set up real-time subscription
   useEffect(() => {
-    if (!code) {
-      setError('No event code provided')
+    if (!id) {
+      setError('No event ID provided')
       setIsLoading(false)
       return
     }
@@ -76,8 +86,8 @@ export default function AdminPage() {
         setIsLoading(true)
         setError(null)
 
-        // Initial fetch
-        const fetchedEvent = await getEventByCode(code)
+        // Initial fetch by ID
+        const fetchedEvent = await getEvent(id)
         if (!fetchedEvent) {
           setError('Event not found')
           setIsLoading(false)
@@ -89,7 +99,7 @@ export default function AdminPage() {
           const wasExpired = await checkAndExpireEvent(fetchedEvent)
           if (wasExpired) {
             // Refetch to get updated status
-            const updatedEvent = await getEventByCode(code)
+            const updatedEvent = await getEvent(id)
             if (updatedEvent) {
               setEvent(updatedEvent)
             } else {
@@ -112,11 +122,13 @@ export default function AdminPage() {
           }
           if (updatedEvent) {
             setEvent(updatedEvent)
-            // Update edit form data if in edit mode
-            if (isEditing) {
+            // Update edit form data if in edit mode (using ref to avoid dependency)
+            if (isEditingRef.current) {
               setEditFormData({
                 name: updatedEvent.name,
                 date: typeof updatedEvent.date === 'string' ? updatedEvent.date : updatedEvent.date.toISOString().split('T')[0],
+                time: updatedEvent.time || '',
+                venue: updatedEvent.venue || '',
                 budget: updatedEvent.budget?.toString() || '',
                 budgetCurrency: updatedEvent.budgetCurrency || 'USD',
                 description: updatedEvent.description || '',
@@ -139,9 +151,10 @@ export default function AdminPage() {
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current()
+        unsubscribeRef.current = null
       }
     }
-  }, [code, isEditing])
+  }, [id])
 
   const handleRunDraw = async () => {
     if (!event) return
@@ -165,7 +178,7 @@ export default function AdminPage() {
       await updateEvent(event.id, { status: 'drawn' })
 
       // Send draw completion emails to all participants
-      const eventLink = `${window.location.origin}/event/${event.code}`
+      const eventLink = `${window.location.origin}/event/${event.id}`
       const emailPromises = assignments.map(async (assignment) => {
         const giver = event.participants.find((p) => p.id === assignment.giverId)
         const receiver = event.participants.find((p) => p.id === assignment.receiverId)
@@ -201,12 +214,11 @@ export default function AdminPage() {
       // Track analytics
       trackEvent(AnalyticsEvents.DRAW_COMPLETED, {
         event_id: event.id,
-        event_code: event.code,
         participant_count: event.participants.length,
       })
 
       // Navigate to results
-      navigate(`/results/${event.code}`)
+      navigate(`/results/${event.id}`)
     } catch (err) {
       console.error('Error running draw:', err)
       setError(err instanceof Error ? err.message : 'Failed to run draw')
@@ -217,33 +229,77 @@ export default function AdminPage() {
 
   const canRunDraw = event
     ? event.participants.length >= 2 &&
-      event.participants.every((p) => p.isReady) &&
       event.status !== 'drawn' &&
       event.status !== 'completed' &&
       event.status !== 'expired'
     : false
 
-  const shareableLink = event ? `${window.location.origin}/event/${event.code}` : ''
+  const shareableLink = event ? `${window.location.origin}/event/${event.id}` : ''
 
-  const handleCopyCode = async () => {
-    if (!event) return
-    try {
-      await navigator.clipboard.writeText(event.code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
-    } catch (err) {
-      console.error('Failed to copy code:', err)
-    }
+  const formatTime = (timeString: string): string => {
+    // Convert HH:mm format (e.g., "18:00") to 12-hour format (e.g., "6:00 PM")
+    if (!timeString) return ''
+    
+    const [hours, minutes] = timeString.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    const displayMinutes = minutes.toString().padStart(2, '0')
+    
+    return `${displayHours}:${displayMinutes} ${period}`
   }
 
-  const handleCopyShareLink = async () => {
-    if (!shareableLink) return
+  const generateShareMessage = () => {
+    if (!event) return ''
+    
+    const eventDate = typeof event.date === 'string' 
+      ? event.date 
+      : event.date.toISOString().split('T')[0]
+    
+    // Format date nicely
+    const dateObj = new Date(eventDate + 'T00:00:00')
+    const formattedDate = format(dateObj, 'MMMM d, yyyy')
+    
+    // Format time from HH:mm to 12-hour format
+    const formattedTime = formatTime(event.time || '')
+    
+    return `Dear friends,
+
+You are warmly invited to join our Secret Santa event:
+🎄 Event: ${event.name}
+📅 Date: ${formattedDate}
+🕒 Time: ${formattedTime}
+📍 Venue: ${event.venue}
+
+Whoever wants to join, please click the link below and join:
+${shareableLink}
+
+Looking forward to celebrating together!`
+  }
+
+  const handleShareEvent = () => {
+    if (!event) return
+    
+    const message = generateShareMessage()
+    setShareMessage(message)
+    setShowShareMessageModal(true)
+    
+    // Auto-copy to clipboard
+    navigator.clipboard.writeText(message).then(() => {
+      setShareMessageCopied(true)
+      setTimeout(() => setShareMessageCopied(false), 3000)
+    }).catch((err) => {
+      console.error('Failed to copy message:', err)
+    })
+  }
+
+  const handleCopyShareMessage = async () => {
+    if (!shareMessage) return
     try {
-      await navigator.clipboard.writeText(shareableLink)
-      setShareLinkCopied(true)
-      setTimeout(() => setShareLinkCopied(false), 3000)
+      await navigator.clipboard.writeText(shareMessage)
+      setShareMessageCopied(true)
+      setTimeout(() => setShareMessageCopied(false), 3000)
     } catch (err) {
-      console.error('Failed to copy share link:', err)
+      console.error('Failed to copy share message:', err)
     }
   }
 
@@ -253,6 +309,8 @@ export default function AdminPage() {
     setEditFormData({
       name: event.name,
       date: typeof event.date === 'string' ? event.date : event.date.toISOString().split('T')[0],
+      time: event.time || '',
+      venue: event.venue || '',
       budget: event.budget?.toString() || '',
       budgetCurrency: event.budgetCurrency || 'USD',
       description: event.description || '',
@@ -265,6 +323,8 @@ export default function AdminPage() {
     setEditFormData({
       name: '',
       date: '',
+      time: '',
+      venue: '',
       budget: '',
       budgetCurrency: 'USD',
       description: '',
@@ -280,6 +340,8 @@ export default function AdminPage() {
       const updates: any = {
         name: editFormData.name,
         date: editFormData.date,
+        time: editFormData.time,
+        venue: editFormData.venue,
       }
 
       if (editFormData.budget) {
@@ -344,8 +406,18 @@ export default function AdminPage() {
         return
       }
 
-      const eventLink = `${window.location.origin}/event/${event.code}`
+      const eventLink = `${window.location.origin}/event/${event.id}`
       const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
+      
+      // Format time from HH:mm to 12-hour format
+      const formatTime = (timeString: string): string => {
+        if (!timeString) return ''
+        const [hours, minutes] = timeString.split(':').map(Number)
+        const period = hours >= 12 ? 'PM' : 'AM'
+        const displayHours = hours % 12 || 12
+        const displayMinutes = minutes.toString().padStart(2, '0')
+        return `${displayHours}:${displayMinutes} ${period}`
+      }
 
       // Check if draw has been completed
       if (event.status === 'drawn') {
@@ -377,8 +449,9 @@ export default function AdminPage() {
           participantEmail: participant.email,
           participantName: participant.name,
           eventName: event.name,
-          eventCode: event.code,
           eventDate: eventDateStr,
+          eventTime: formatTime(event.time || ''),
+          eventVenue: event.venue || '',
           eventLink,
         })
         trackEvent(AnalyticsEvents.EMAIL_RESENT, {
@@ -418,7 +491,7 @@ export default function AdminPage() {
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
-    link.setAttribute('download', `participants_${event.code}_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `participants_${event.id}_${new Date().toISOString().split('T')[0]}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -487,7 +560,7 @@ export default function AdminPage() {
           </p>
           <Button
             variant="hero"
-            onClick={() => navigate(`/event/${code}`)}
+            onClick={() => navigate(`/event/${event.id}`)}
             className="shadow-gold"
           >
             View Public Event
@@ -529,7 +602,7 @@ export default function AdminPage() {
         {/* Back Button & Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(`/event/${code}`)}
+            onClick={() => navigate(`/event/${event.id}`)}
             className="inline-flex items-center gap-2 text-gold hover:text-gold-light transition-colors mb-4 font-body"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -625,6 +698,35 @@ export default function AdminPage() {
               </div>
               
               <div>
+                <label htmlFor="editTime" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Time <span className="text-gold">*</span>
+                </label>
+                <input
+                  id="editTime"
+                  type="time"
+                  value={editFormData.time}
+                  onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
+                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="editVenue" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
+                  Venue <span className="text-gold">*</span>
+                </label>
+                <input
+                  id="editVenue"
+                  type="text"
+                  value={editFormData.venue}
+                  onChange={(e) => setEditFormData({ ...editFormData, venue: e.target.value })}
+                  placeholder="e.g., Community Center, 123 Main St"
+                  className="w-full px-4 py-3 bg-christmas-red-deep/50 border-2 border-gold/30 rounded-xl focus:border-gold focus:outline-none transition-colors text-snow-white font-body"
+                  required
+                />
+              </div>
+              
+              <div>
                 <label htmlFor="editBudget" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
                   Budget <span className="text-snow-white/50">(optional)</span>
                 </label>
@@ -677,11 +779,6 @@ export default function AdminPage() {
                 <span className="font-medium">{event.name}</span>
               </div>
               <div className="flex items-center gap-3 text-snow-white/80">
-                <span className="text-2xl">🎫</span>
-                <span className="text-snow-white/60">Code:</span>
-                <span className="font-mono font-bold text-gold">{event.code}</span>
-              </div>
-              <div className="flex items-center gap-3 text-snow-white/80">
                 <Calendar className="h-4 w-4 text-gold/70" />
                 <span className="text-snow-white/60">Date:</span>
                 <span>{(() => {
@@ -713,49 +810,83 @@ export default function AdminPage() {
             
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <Button
-                onClick={handleCopyCode}
-                variant="outline"
-                className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
+                onClick={handleShareEvent}
+                variant="hero"
+                className="w-full shadow-gold"
               >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Code Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy Event Code
-                  </>
-                )}
-              </Button>
-              
-              <Button
-                onClick={handleCopyShareLink}
-                variant="outline"
-                className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
-              >
-                {shareLinkCopied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Link Copied!
-                  </>
-                ) : (
-                  <>
-                    <LinkIcon className="mr-2 h-4 w-4" />
-                    Copy Share Link
-                  </>
-                )}
+                <Send className="mr-2 h-4 w-4" />
+                Share Event
               </Button>
             </div>
-
-            {shareableLink && (
-              <div className="bg-christmas-red-dark/30 rounded-xl p-4 border border-gold/10">
-                <div className="text-xs text-snow-white/50 mb-2 font-body">Shareable Link:</div>
-                <div className="text-sm font-mono text-gold break-all">{shareableLink}</div>
-              </div>
-            )}
           </div>
+
+          {/* Share Message Modal */}
+          {showShareMessageModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-christmas-red-dark/95 backdrop-blur-sm border-2 border-gold/40 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-gold-lg">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-display text-2xl text-gradient-gold flex items-center gap-2">
+                    <Send className="h-6 w-6" />
+                    Share Event Message
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowShareMessageModal(false)
+                      setShareMessage('')
+                      setShareMessageCopied(false)
+                    }}
+                    className="text-snow-white/70 hover:text-snow-white transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                
+                <p className="text-snow-white/70 mb-4 text-sm">
+                  The message has been copied to your clipboard. You can edit it below before sending:
+                </p>
+                
+                <div className="mb-4">
+                  <Textarea
+                    value={shareMessage}
+                    onChange={(e) => setShareMessage(e.target.value)}
+                    rows={12}
+                    className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none font-body"
+                  />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={handleCopyShareMessage}
+                    variant="outline"
+                    className="flex-1 bg-secondary/50 border-gold/30 text-gold hover:bg-gold/20 hover:border-gold/50"
+                  >
+                    {shareMessageCopied ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Message Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Message
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowShareMessageModal(false)
+                      setShareMessage('')
+                      setShareMessageCopied(false)
+                    }}
+                    variant="hero"
+                    className="flex-1 shadow-gold"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Participants List */}
@@ -800,22 +931,6 @@ export default function AdminPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <div
-                      className={`px-3 py-1.5 rounded-full text-sm font-semibold font-body flex items-center gap-1 ${
-                        participant.isReady
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-christmas-red-dark/50 text-snow-white/60 border border-gold/20'
-                      }`}
-                    >
-                      {participant.isReady ? (
-                        <>
-                          <Check className="h-3 w-3" />
-                          Ready
-                        </>
-                      ) : (
-                        'Not Ready'
-                      )}
-                    </div>
                     {participant.email && (
                       <button
                         onClick={() => handleResendEmail(participant.id)}
@@ -880,8 +995,6 @@ export default function AdminPage() {
               <div className="p-4 bg-christmas-red-dark/30 rounded-xl text-snow-white/60 text-center font-body border border-gold/20">
                 {totalCount < 2
                   ? '⚠️ Need at least 2 participants to run draw'
-                  : !event.participants.every((p) => p.isReady)
-                  ? '⏳ All participants must be ready'
                   : event.status === 'drawn'
                   ? '✅ Draw has already been completed'
                   : '🚫 Cannot run draw at this time'}
@@ -890,7 +1003,7 @@ export default function AdminPage() {
 
             {event.status === 'drawn' && (
               <Button
-                onClick={() => navigate(`/results/${code}`)}
+                onClick={() => navigate(`/results/${event.id}`)}
                 variant="outline"
                 size="lg"
                 className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20"
@@ -931,29 +1044,46 @@ export default function AdminPage() {
               </div>
             ) : (
               <>
-                <div>
-                  <Button
-                    onClick={handleStartEdit}
-                    disabled={isUpdating || event.status === 'drawn' || event.status === 'completed'}
-                    variant="outline"
-                    className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Settings className="mr-2 h-5 w-5" />
-                    Edit Event
-                  </Button>
-                </div>
+                {/* For drawn/completed events, only show Delete Event */}
+                {event.status === 'drawn' || event.status === 'completed' ? (
+                  <div>
+                    <Button
+                      onClick={() => setShowDeleteModal(true)}
+                      disabled={isDeleting}
+                      variant="outline"
+                      className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <X className="mr-2 h-5 w-5" />
+                      Delete Event
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Button
+                        onClick={handleStartEdit}
+                        disabled={isUpdating}
+                        variant="outline"
+                        className="w-full bg-gold/10 border-gold/30 text-gold hover:bg-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Settings className="mr-2 h-5 w-5" />
+                        Edit Event
+                      </Button>
+                    </div>
 
-                <div>
-                  <Button
-                    onClick={() => setShowDeleteModal(true)}
-                    disabled={isDeleting || event.status === 'drawn' || event.status === 'completed'}
-                    variant="outline"
-                    className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <X className="mr-2 h-5 w-5" />
-                    Delete Event
-                  </Button>
-                </div>
+                    <div>
+                      <Button
+                        onClick={() => setShowDeleteModal(true)}
+                        disabled={isDeleting}
+                        variant="outline"
+                        className="w-full bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <X className="mr-2 h-5 w-5" />
+                        Delete Event
+                      </Button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>

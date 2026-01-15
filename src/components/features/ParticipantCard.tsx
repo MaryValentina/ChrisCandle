@@ -31,25 +31,14 @@ export default function ParticipantCard({
             <h3 className="text-xl md:text-2xl font-bold text-gold mb-1">
               {participant.name}
             </h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              {participant.isOrganizer && (
+            {participant.isOrganizer && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-christmas-gold-100 to-christmas-gold-200 text-christmas-gold-800 rounded-full text-xs font-semibold border border-christmas-gold-400">
                   <span className="text-sm">👑</span>
                   Organizer
                 </span>
-              )}
-              {participant.isReady ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-xs font-semibold border border-green-400/30">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Ready
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-500/20 text-gray-300 rounded-full text-xs font-semibold border border-gray-400/30">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                  Not Ready
-                </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -4,7 +4,7 @@
  * This file contains all the core interfaces and types used throughout the application.
  * All types are designed to be Firestore-compatible.
  * 
- * Code-based approach: Events are accessed via a shareable code instead of direct ID links.
+ * ID-based approach: Events are accessed via their Firestore document ID.
  */
 
 /**
@@ -41,19 +41,23 @@ export type EventStatus =
 /**
  * Represents a Secret Santa event
  * Fully compatible with Firestore document structure
- * Code-based: Events are accessed via a shareable code
+ * ID-based: Events are accessed via their Firestore document ID
  */
 export interface Event {
   /** Unique identifier for the event (Firestore document ID) */
   id: string
-  /** Shareable code for accessing the event (e.g., "ABC123") */
-  code: string
   /** Name of the event */
   name: string
   /** Date of the gift exchange (Firestore-compatible date) */
   date: FirestoreDate
-  /** Spending limit/budget (optional) */
+  /** Time of the event (e.g., "6:00 PM") */
+  time: string
+  /** Venue/location of the event */
+  venue: string
+  /** Spending limit/budget amount (optional) */
   budget?: number
+  /** Currency for the budget (optional, e.g., "USD", "LKR", "EUR") */
+  budgetCurrency?: string
   /** ID of the event organizer (references User.id) */
   organizerId: string
   /** List of participants in the event */
@@ -212,9 +216,10 @@ export const exampleParticipants: Participant[] = [
  */
 export const exampleEvent: Event = {
   id: 'event-1',
-  code: 'ABC123',
   name: 'Office Secret Santa 2024',
   date: new Date('2024-12-25').toISOString(),
+  time: '6:00 PM',
+  venue: 'Community Center, 123 Main St',
   budget: 25,
   organizerId: 'user-1',
   participants: exampleParticipants,

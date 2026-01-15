@@ -1,24 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getEventByCode, getAssignments } from '../lib/firebase'
+import { getEvent, getAssignments, findParticipantByEmail } from '../lib/firebase'
 import ResultsCard from '../components/features/ResultsCard'
 import Navbar from '../components/Navbar'
 import Snowflakes from '../components/Snowflakes'
 import { Button } from '../components/ui/button'
-import type { Event, Assignment } from '../types'
+import { useAuth } from '../contexts/AuthContext'
+import type { Event, Assignment, Participant } from '../types'
 
 export default function ResultsPage() {
   const navigate = useNavigate()
-  const { code } = useParams<{ code: string }>()
+  const { id } = useParams<{ id: string }>()
+  const { organizerId, currentUser } = useAuth()
   const [event, setEvent] = useState<Event | null>(null)
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [currentParticipant, setCurrentParticipant] = useState<Participant | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!code) {
-        setError('No event code provided')
+      if (!id) {
+        setError('No event ID provided')
         setIsLoading(false)
         return
       }
@@ -27,8 +30,8 @@ export default function ResultsPage() {
         setIsLoading(true)
         setError(null)
 
-        // Fetch event by code
-        const fetchedEvent = await getEventByCode(code)
+        // Fetch event by ID
+        const fetchedEvent = await getEvent(id)
         if (!fetchedEvent) {
           setError('Event not found')
           setIsLoading(false)
@@ -36,6 +39,17 @@ export default function ResultsPage() {
         }
 
         setEvent(fetchedEvent)
+
+        // Check if current user is a participant
+        let participant: Participant | null = null
+        if (currentUser?.email && fetchedEvent) {
+          try {
+            participant = await findParticipantByEmail(fetchedEvent.id, currentUser.email)
+          } catch (err) {
+            console.warn('Could not find participant by email:', err)
+          }
+        }
+        setCurrentParticipant(participant || null)
 
         // Fetch assignments
         const fetchedAssignments = await getAssignments(fetchedEvent.id)
@@ -50,12 +64,42 @@ export default function ResultsPage() {
     }
 
     fetchData()
-  }, [code])
+  }, [id, currentUser?.email, organizerId])
 
   // Get participant by ID
   const getParticipant = (id: string) => {
     return event?.participants.find((p) => p.id === id)
   }
+
+  // Check if event is completed (only then can everyone see all pairs)
+  const isEventCompleted = () => {
+    return event?.status === 'completed'
+  }
+
+  // Get assignments to display based on event status and user role
+  const getDisplayAssignments = (): Assignment[] => {
+    if (!event || assignments.length === 0) return []
+    
+    const eventCompleted = isEventCompleted()
+    
+    // If event is completed, show all assignments to everyone
+    if (eventCompleted) {
+      return assignments
+    }
+    
+    // Before event completion: only show current participant's own assignment
+    // Organizers cannot see all pairs - they can only see their own if they're a participant
+    if (currentParticipant) {
+      const userAssignment = assignments.find(a => a.giverId === currentParticipant.id)
+      return userAssignment ? [userAssignment] : []
+    }
+    
+    // If no participant found, return empty (organizers cannot see pairs unless they're participants)
+    return []
+  }
+
+  const displayAssignments = getDisplayAssignments()
+  const eventCompleted = isEventCompleted()
 
   if (isLoading) {
     return (
@@ -103,7 +147,7 @@ export default function ResultsPage() {
             Assignments haven't been generated yet. The organizer needs to run the draw first.
           </p>
           <Button
-            onClick={() => navigate(`/event/${code}`)}
+            onClick={() => navigate(`/event/${id}`)}
             variant="hero"
             className="shadow-gold"
           >
@@ -132,13 +176,17 @@ export default function ResultsPage() {
               🎉 Secret Santa Assignments
             </h1>
             <p className="text-snow-white/70 mb-8">
-              The moment of truth! Here are your Secret Santa pairings for{' '}
-              <span className="font-semibold text-gold">{event.name}</span>.
+              {eventDatePassed 
+                ? `All Secret Santa pairings for ${event.name}. The event date has passed, so everyone can see all matches!`
+                : `Your Secret Santa assignment for ${event.name}. After the event date (${new Date(event.date).toLocaleDateString()}), everyone will be able to see all pairings.`
+              }
             </p>
 
-            {/* All Assignments View */}
-            <div className="space-y-4 mb-8">
-              {assignments.map((assignment) => {
+            {/* All Assignments View - Only show if event date passed */}
+            {eventDatePassed && (
+              <div className="space-y-4 mb-8">
+                <h2 className="font-display text-2xl text-gradient-gold mb-4">All Pairings</h2>
+                {assignments.map((assignment) => {
                 const giver = getParticipant(assignment.giverId)
                 const receiver = getParticipant(assignment.receiverId)
 
@@ -166,16 +214,17 @@ export default function ResultsPage() {
                   </div>
                 )
               })}
-            </div>
-          </div>
+              </div>
+            )}
 
-          {/* Individual Reveal Cards */}
-          <div className="mb-6">
-            <h2 className="font-display text-2xl text-gradient-gold mb-4 text-center">
-              Your Assignment
-            </h2>
-            <div className="space-y-6">
-              {assignments.map((assignment) => {
+            {/* Individual Assignment Card */}
+            {displayAssignments.length > 0 && (
+              <div className="mb-6">
+                <h2 className="font-display text-2xl text-gradient-gold mb-4 text-center">
+                  {eventDatePassed ? 'All Assignments' : 'Your Assignment'}
+                </h2>
+                <div className="space-y-6">
+                  {displayAssignments.map((assignment) => {
                 const receiver = getParticipant(assignment.receiverId)
                 if (!receiver) return null
 
@@ -191,7 +240,25 @@ export default function ResultsPage() {
                   />
                 )
               })}
-            </div>
+                </div>
+              </div>
+            )}
+
+            {/* No Assignment Message */}
+            {displayAssignments.length === 0 && !eventCompleted && (
+              <div className="mb-6 p-6 bg-gold/10 border-2 border-gold/30 rounded-xl text-center backdrop-blur-sm">
+                <div className="text-4xl mb-2">🎁</div>
+                <h3 className="font-bold text-gold mb-2">No Assignment Found</h3>
+                <p className="text-snow-white/80">
+                  {currentParticipant 
+                    ? "You don't have an assignment yet. Please contact the organizer."
+                    : organizerId && event.organizerId === organizerId
+                    ? "As the organizer, you can only see your own assignment if you're also a participant. You cannot view other participants' matches until the event is completed."
+                    : "You need to join this event as a participant to see your assignment."
+                  }
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -205,7 +272,7 @@ export default function ResultsPage() {
                 Export Results
               </Button>
               <Link
-                to={`/event/${code}`}
+                to={`/event/${id}`}
                 className="flex-1"
               >
                 <Button variant="outline" className="w-full border-gold/30 text-gold hover:bg-gold/10">

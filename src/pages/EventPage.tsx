@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEventByCode, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail, getDb } from '../lib/firebase'
+import { getEvent, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail, getDb, updateParticipantWishlist, removeParticipant } from '../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { sendWelcomeEmail, sendOrganizerNotificationEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
@@ -20,7 +20,7 @@ import type { Participant, Event, Assignment } from '../types'
 
 export default function EventPage() {
   const navigate = useNavigate()
-  const { code } = useParams<{ code: string }>()
+  const { id } = useParams<{ id: string }>()
   const { updateEvent: updateEventInStore } = useEventStore()
 
   const [event, setEvent] = useState<Event | null>(null)
@@ -40,36 +40,17 @@ export default function EventPage() {
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isRecreating, setIsRecreating] = useState(false)
   const [showRecreateModal, setShowRecreateModal] = useState(false)
-  const { organizerId } = useAuth()
+  const [showEditWishlistModal, setShowEditWishlistModal] = useState(false)
+  const [showLeaveEventModal, setShowLeaveEventModal] = useState(false)
+  const [isEditingWishlist, setIsEditingWishlist] = useState(false)
+  const [isLeavingEvent, setIsLeavingEvent] = useState(false)
+  const [wishlistText, setWishlistText] = useState('')
+  const { organizerId, organizerName, currentUser } = useAuth()
   const unsubscribeRef = useRef<(() => void) | null>(null)
 
-  // Check if current user is already a participant (by email in localStorage)
-  useEffect(() => {
-    if (event) {
-      // Check by participant ID first (for backward compatibility)
-      const storedParticipantId = localStorage.getItem(`participant_${event.id}`)
-      if (storedParticipantId) {
-        const isParticipant = event.participants.some((p) => p.id === storedParticipantId)
-        if (isParticipant) {
-          setCurrentParticipantId(storedParticipantId)
-          return
-        }
-      }
-
-      // Check by email (new method)
-      const storedEmail = localStorage.getItem(`participant_email_${event.code}`)
-      if (storedEmail) {
-        const normalizedStoredEmail = storedEmail.toLowerCase().trim()
-        const participant = event.participants.find(
-          (p) => p.email?.toLowerCase().trim() === normalizedStoredEmail
-        )
-        if (participant) {
-          setCurrentParticipantId(participant.id)
-          localStorage.setItem(`participant_${event.id}`, participant.id)
-        }
-      }
-    }
-  }, [event])
+  // Note: We don't auto-identify participants from localStorage on page load
+  // Participants must explicitly join or re-enter their email to be identified
+  // This prevents showing welcome messages prematurely
 
   const handleReEnterEmail = async (email: string) => {
     if (!event) return
@@ -82,17 +63,22 @@ export default function EventPage() {
       if (participant) {
         setCurrentParticipantId(participant.id)
           localStorage.setItem(`participant_${event.id}`, participant.id)
-          localStorage.setItem(`participant_email_${event.code}`, email)
+          localStorage.setItem(`event_${event.id}_email`, email)
           if (participant.name) {
-            localStorage.setItem(`participant_name_${event.code}`, participant.name)
+            localStorage.setItem(`participant_name_${event.id}`, participant.name)
           }
           setShowReEnterModal(false)
+          setJoinSuccess(true) // Show welcome message
           
           // Track re-entry
           trackEvent(AnalyticsEvents.PARTICIPANT_REENTERED, {
             event_id: event.id,
-            event_code: event.code,
           })
+          
+          // Auto-hide success message after 5 seconds
+          setTimeout(() => {
+            setJoinSuccess(false)
+          }, 5000)
       } else {
         setReEnterError('No participant found with this email address. Please check your email and try again, or join the event if you haven\'t already.')
       }
@@ -106,8 +92,8 @@ export default function EventPage() {
 
   // Fetch event and set up real-time subscription
   useEffect(() => {
-    if (!code) {
-      setError('No event code provided')
+    if (!id) {
+      setError('No event ID provided')
       setIsLoading(false)
       return
     }
@@ -117,10 +103,10 @@ export default function EventPage() {
         setIsLoading(true)
         setError(null)
 
-        // Initial fetch by code
-        const fetchedEvent = await getEventByCode(code)
+        // Initial fetch by ID
+        const fetchedEvent = await getEvent(id)
         if (!fetchedEvent) {
-          setError('Event not found. Please check the code and try again.')
+          setError('Event not found. Please check the link and try again.')
           setIsLoading(false)
           return
         }
@@ -128,7 +114,6 @@ export default function EventPage() {
         // Track event view
         trackEvent(AnalyticsEvents.EVENT_VIEWED, {
           event_id: fetchedEvent.id,
-          event_code: fetchedEvent.code,
         })
 
         // Check and expire event if needed (if date passed > 7 days)
@@ -136,7 +121,7 @@ export default function EventPage() {
           const wasExpired = await checkAndExpireEvent(fetchedEvent)
           if (wasExpired) {
             // Refetch to get updated status
-            const updatedEvent = await getEventByCode(code)
+            const updatedEvent = await getEvent(id)
             if (updatedEvent) {
               setEvent(updatedEvent)
               updateEventInStore(updatedEvent)
@@ -209,7 +194,7 @@ export default function EventPage() {
         unsubscribeRef.current()
       }
     }
-  }, [code, updateEventInStore])
+  }, [id, updateEventInStore])
 
   const handleJoinEvent = async (formData: { name: string; email: string; wishlist?: string[] }) => {
     if (!event) return
@@ -225,7 +210,7 @@ export default function EventPage() {
         name: formData.name,
         email: formData.email,
         wishlist: formData.wishlist,
-        isReady: false,
+        isReady: true, // Participants are automatically ready when they join
         joinedAt: now,
       }
 
@@ -235,12 +220,12 @@ export default function EventPage() {
         name: newParticipant.name,
         email: newParticipant.email,
         wishlist: newParticipant.wishlist,
-        isReady: newParticipant.isReady,
+        isReady: true, // Participants are automatically ready when they join
         joinedAt: newParticipant.joinedAt,
       })
 
       // Get updated event to find the new participant ID
-      const updatedEvent = await getEventByCode(code!)
+      const updatedEvent = await getEvent(event.id)
       if (updatedEvent) {
         const newParticipantObj = updatedEvent.participants.find(
           (p) => p.name === formData.name && p.email === formData.email
@@ -248,24 +233,36 @@ export default function EventPage() {
         if (newParticipantObj) {
           setCurrentParticipantId(newParticipantObj.id)
           
-          // Store participant info in localStorage for return visits
+          // Store participant info in localStorage for return visits (using email as primary key)
           localStorage.setItem(`participant_${event.id}`, newParticipantObj.id)
-          localStorage.setItem(`participant_email_${event.code}`, formData.email)
-          localStorage.setItem(`participant_name_${event.code}`, formData.name)
+          localStorage.setItem(`event_${event.id}_email`, formData.email)
+          localStorage.setItem(`participant_name_${event.id}`, formData.name)
         }
         setEvent(updatedEvent)
       }
 
-      // Send welcome email to participant
+      // Send success email to participant
       try {
-        const eventLink = `${window.location.origin}/event/${event.code}`
+        const eventLink = `${window.location.origin}/event/${event.id}`
         const eventDateStr = typeof event.date === 'string' ? event.date : event.date.toISOString()
+        
+        // Format time from HH:mm to 12-hour format
+        const formatTime = (timeString: string): string => {
+          if (!timeString) return ''
+          const [hours, minutes] = timeString.split(':').map(Number)
+          const period = hours >= 12 ? 'PM' : 'AM'
+          const displayHours = hours % 12 || 12
+          const displayMinutes = minutes.toString().padStart(2, '0')
+          return `${displayHours}:${displayMinutes} ${period}`
+        }
+        
         await sendWelcomeEmail({
           participantEmail: formData.email,
           participantName: formData.name,
           eventName: event.name,
-          eventCode: event.code,
           eventDate: eventDateStr,
+          eventTime: formatTime(event.time || ''),
+          eventVenue: event.venue || '',
           eventLink,
         })
       } catch (emailError) {
@@ -287,7 +284,7 @@ export default function EventPage() {
             const organizerName = organizerData?.name || null
             
             if (organizerEmail) {
-              const eventLink = `${window.location.origin}/event/${event.code}/admin`
+              const eventLink = `${window.location.origin}/event/${event.id}/admin`
               const totalParticipants = updatedEvent?.participants.length || event.participants.length + 1
               
               await sendOrganizerNotificationEmail({
@@ -296,7 +293,6 @@ export default function EventPage() {
                 participantName: formData.name,
                 participantEmail: formData.email,
                 eventName: event.name,
-                eventCode: event.code,
                 totalParticipants,
                 eventLink,
               })
@@ -315,7 +311,6 @@ export default function EventPage() {
       // Track participant joined
       trackEvent(AnalyticsEvents.PARTICIPANT_JOINED, {
         event_id: event.id,
-        event_code: event.code,
       })
 
       // Auto-hide success message after 5 seconds
@@ -336,19 +331,6 @@ export default function EventPage() {
     }
   }
 
-  const handleMarkReady = async () => {
-    if (!event || !currentParticipantId) return
-
-    try {
-      const updatedParticipants = event.participants.map((p) =>
-        p.id === currentParticipantId ? { ...p, isReady: !p.isReady } : p
-      )
-
-      await updateEvent(event.id, { participants: updatedParticipants })
-    } catch (err) {
-      console.error('Error updating ready status:', err)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -382,7 +364,7 @@ export default function EventPage() {
               variant="hero"
               className="shadow-gold"
             >
-              Try Another Code
+              Try Another Event
             </Button>
             <Button
               onClick={() => navigate('/')}
@@ -423,7 +405,12 @@ export default function EventPage() {
     setIsRecreating(true)
     try {
       await recreateEventForNextYear(event, async (eventData) => {
-        return await createFirebaseEvent(eventData)
+        // Pass organizer info so they're automatically added as participant
+        return await createFirebaseEvent(
+          eventData,
+          currentUser?.email || undefined,
+          organizerName || currentUser?.displayName || undefined
+        )
       })
 
       // Navigate to dashboard where they can see the new event
@@ -470,6 +457,76 @@ export default function EventPage() {
     }
   }
 
+  const handleEditWishlist = async () => {
+    if (!event || !currentParticipantId) return
+
+    setIsEditingWishlist(true)
+    try {
+      // Split wishlist by newlines or commas
+      const wishlistItems = wishlistText
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+
+      await updateParticipantWishlist(event.id, currentParticipantId, wishlistItems)
+      
+      // Refresh event data
+      if (event) {
+        const updatedEvent = await getEvent(event.id)
+        if (updatedEvent) {
+          setEvent(updatedEvent)
+        }
+      }
+      
+      setShowEditWishlistModal(false)
+      setWishlistText('')
+      setError(null)
+    } catch (err) {
+      console.error('Error updating wishlist:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update wishlist')
+    } finally {
+      setIsEditingWishlist(false)
+    }
+  }
+
+  const handleLeaveEvent = async () => {
+    if (!event || !currentParticipantId) return
+
+    setIsLeavingEvent(true)
+    try {
+      await removeParticipant(event.id, currentParticipantId)
+      
+      // Clear localStorage (using event ID)
+      localStorage.removeItem(`event_${event.id}_email`)
+      localStorage.removeItem(`participant_${event.id}`)
+      localStorage.removeItem(`participant_name_${event.id}`)
+      
+      // Clear current participant
+      setCurrentParticipantId(null)
+      
+      // Refresh event data
+      if (event) {
+        const updatedEvent = await getEvent(event.id)
+        if (updatedEvent) {
+          setEvent(updatedEvent)
+        }
+      }
+      
+      setShowLeaveEventModal(false)
+      setError(null)
+      
+      // Track analytics
+      trackEvent(AnalyticsEvents.PARTICIPANT_LEFT, {
+        event_id: event.id,
+      })
+    } catch (err) {
+      console.error('Error leaving event:', err)
+      setError(err instanceof Error ? err.message : 'Failed to leave event')
+    } finally {
+      setIsLeavingEvent(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <Snowflakes />
@@ -497,13 +554,10 @@ export default function EventPage() {
                 <h1 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
                   🎄 {event.name}
                 </h1>
-                <p className="text-snow-white/70">
-                  Event Code: <span className="font-mono font-bold text-gold">{event.code}</span>
-                </p>
               </div>
               {isOrganizer && (
                 <Button
-                  onClick={() => navigate(`/event/${code}/admin`)}
+                  onClick={() => navigate(`/event/${event.id}/admin`)}
                   variant="hero"
                   size="sm"
                   className="shadow-gold"
@@ -576,21 +630,52 @@ export default function EventPage() {
             {/* Countdown Timer */}
             {event.status === 'active' && (
               <div className="mb-6 p-4 bg-gold/10 border border-gold/20 rounded-xl">
-                <CountdownTimer eventDate={event.date} />
+                <CountdownTimer eventDate={event.date} eventTime={event.time} />
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
                 <div className="text-sm text-snow-white/60 mb-1">📅 Exchange Date</div>
                 <div className="font-bold text-gold">
-                  {format(new Date(event.date), 'MMM d, yyyy')}
+                  {(() => {
+                    // Handle YYYY-MM-DD format strings correctly
+                    if (typeof event.date === 'string' && event.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      const [year, month, day] = event.date.split('-').map(Number)
+                      const date = new Date(year, month - 1, day)
+                      return format(date, 'MMM d, yyyy')
+                    }
+                    return format(new Date(event.date), 'MMM d, yyyy')
+                  })()}
                 </div>
               </div>
+              {event.time && (
+                <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                  <div className="text-sm text-snow-white/60 mb-1">🕒 Time</div>
+                  <div className="font-bold text-gold">
+                    {(() => {
+                      // Convert HH:mm to 12-hour format
+                      const [hours, minutes] = event.time.split(':').map(Number)
+                      const period = hours >= 12 ? 'PM' : 'AM'
+                      const displayHours = hours % 12 || 12
+                      const displayMinutes = minutes.toString().padStart(2, '0')
+                      return `${displayHours}:${displayMinutes} ${period}`
+                    })()}
+                  </div>
+                </div>
+              )}
+              {event.venue && (
+                <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
+                  <div className="text-sm text-snow-white/60 mb-1">📍 Venue</div>
+                  <div className="font-bold text-gold">{event.venue}</div>
+                </div>
+              )}
               {event.budget && (
                 <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
                   <div className="text-sm text-snow-white/60 mb-1">💰 Budget</div>
-                  <div className="font-bold text-gold">${event.budget}</div>
+                  <div className="font-bold text-gold">
+                    {event.budgetCurrency || 'USD'} {event.budget}
+                  </div>
                 </div>
               )}
               <div className="p-4 bg-christmas-red-dark/30 border border-gold/10 rounded-xl">
@@ -606,12 +691,12 @@ export default function EventPage() {
           </div>
 
           {/* Success Message */}
-          {joinSuccess && (
+          {joinSuccess && currentParticipant && (
             <div className="mb-6 p-4 bg-gold/20 border-2 border-gold/40 rounded-xl backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="text-3xl">✅</div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gold mb-1">You're In!</h3>
+                  <h3 className="font-bold text-gold mb-1">Welcome{currentParticipant.name ? `, ${currentParticipant.name}` : ''}!</h3>
                   <p className="text-sm text-snow-white/80">
                     Check your email for confirmation. You've successfully joined this Secret Santa event.
                   </p>
@@ -667,24 +752,11 @@ export default function EventPage() {
               <div className="text-center">
                 <div className="text-5xl mb-4">🎉</div>
                 <h2 className="font-display text-2xl text-gradient-gold mb-2">
-                  You're In!
+                  Welcome{currentParticipant.name ? `, ${currentParticipant.name}` : ''}!
                 </h2>
                 <p className="text-snow-white/70 mb-6">
                   You've joined this Secret Santa event
                 </p>
-                {event.status !== 'drawn' && (
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={currentParticipant.isReady}
-                        onChange={handleMarkReady}
-                        className="w-5 h-5 rounded border-gold/50 bg-christmas-red-deep/50 text-gold focus:ring-gold focus:ring-offset-0 cursor-pointer"
-                      />
-                      <span className="font-semibold text-snow-white">I'm ready for the draw</span>
-                    </label>
-                  </div>
-                )}
                 {currentParticipant.wishlist && currentParticipant.wishlist.length > 0 && (
                   <div className="mt-6 p-4 bg-gold/10 border border-gold/20 rounded-xl">
                     <h3 className="font-bold text-gold mb-2">Your Wishlist:</h3>
@@ -693,6 +765,29 @@ export default function EventPage() {
                         <li key={idx}>{item}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {/* Edit Wishlist and Leave Event buttons - only show if event hasn't been drawn */}
+                {event.status !== 'drawn' && event.status !== 'completed' && (
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                    <Button
+                      onClick={() => {
+                        setWishlistText(currentParticipant.wishlist?.join('\n') || '')
+                        setShowEditWishlistModal(true)
+                      }}
+                      variant="outline"
+                      className="flex-1 bg-gold/10 border-gold/30 text-gold hover:bg-gold/20"
+                    >
+                      ✏️ Edit Wishlist
+                    </Button>
+                    <Button
+                      onClick={() => setShowLeaveEventModal(true)}
+                      variant="outline"
+                      className="flex-1 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
+                    >
+                      🚪 Leave Event
+                    </Button>
                   </div>
                 )}
               </div>
@@ -789,6 +884,84 @@ export default function EventPage() {
         isSubmitting={isReEntering}
         error={reEnterError}
       />
+
+      {/* Edit Wishlist Modal */}
+      {showEditWishlistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-gold/30 rounded-2xl shadow-gold-lg max-w-md w-full">
+            <div className="p-6 md:p-8">
+              <h2 className="font-display text-2xl text-gradient-gold mb-4">Edit Wishlist</h2>
+              <p className="text-snow-white/70 mb-4 text-sm">
+                Enter your wishlist items, one per line or separated by commas.
+              </p>
+              
+              <textarea
+                value={wishlistText}
+                onChange={(e) => setWishlistText(e.target.value)}
+                placeholder="e.g., Books, Coffee, Art supplies"
+                rows={6}
+                className="w-full px-4 py-3 border-2 border-gold/30 rounded-xl bg-christmas-red-deep/50 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:outline-none transition-colors resize-none"
+                disabled={isEditingWishlist}
+              />
+              
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => {
+                    setShowEditWishlistModal(false)
+                    setWishlistText('')
+                  }}
+                  disabled={isEditingWishlist}
+                  variant="outline"
+                  className="flex-1 bg-christmas-red-dark/30 border-gold/30 text-snow-white hover:bg-christmas-red-dark/50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleEditWishlist}
+                  disabled={isEditingWishlist}
+                  variant="hero"
+                  className="flex-1 shadow-gold"
+                >
+                  {isEditingWishlist ? 'Saving...' : 'Save Wishlist'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Event Modal */}
+      {showLeaveEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-christmas-red-dark/95 backdrop-blur-md border border-destructive/30 rounded-2xl shadow-gold-lg max-w-md w-full">
+            <div className="p-6 md:p-8">
+              <h2 className="font-display text-2xl text-destructive mb-4">Leave Event</h2>
+              <p className="text-snow-white/70 mb-6">
+                Are you sure you want to leave this event? This action cannot be undone. You will need to rejoin with your email if you want to participate again.
+              </p>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowLeaveEventModal(false)}
+                  disabled={isLeavingEvent}
+                  variant="outline"
+                  className="flex-1 bg-christmas-red-dark/30 border-gold/30 text-snow-white hover:bg-christmas-red-dark/50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleLeaveEvent}
+                  disabled={isLeavingEvent}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  {isLeavingEvent ? 'Leaving...' : 'Leave Event'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recreate Event Modal */}
       {showRecreateModal && event && (
