@@ -190,7 +190,7 @@ const HowItWorksPage = () => {
               >
                 {/* Step Number */}
                 <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center">
-                  <span className="font-display text-gold font-bold">{index + 1}</span>
+                  <span className="font-display text-gold font-bold text-center leading-none">{index + 1}</span>
                 </div>
 
                 {/* Icon */}
