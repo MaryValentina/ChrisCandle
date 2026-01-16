@@ -557,11 +557,14 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
 
     // Add organizer as participant only if email/name are provided
     let allParticipants = [...eventData.participants]
+    let organizerEmailFinal: string | undefined = undefined
+    let organizerNameFinal: string | undefined = undefined
+    let organizerParticipant: Participant | undefined = undefined
     
     if (organizerEmail || organizerName) {
       // Get organizer info from auth if not provided
-      let organizerEmailFinal = organizerEmail
-      let organizerNameFinal = organizerName
+      organizerEmailFinal = organizerEmail
+      organizerNameFinal = organizerName
       if (!organizerEmailFinal || !organizerNameFinal) {
         const auth = getAuthInstance()
         if (auth && auth.currentUser) {
@@ -575,7 +578,7 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
       const organizerParticipantId = uuidv4()
 
       // Create organizer participant with isReady: true and isOrganizer: true
-      const organizerParticipant: Participant = {
+      organizerParticipant = {
         id: organizerParticipantId,
         eventId: '', // Will be set after event creation
         name: organizerNameFinal || 'Organizer',
@@ -705,6 +708,39 @@ export async function createEvent(eventData: Omit<EventData, 'createdAt'>, organ
     }
     
     console.log('✅ Event created with ID:', docRef.id)
+    
+    // Send confirmation email to organizer if they were added as participant
+    if (organizerEmailFinal && organizerParticipant) {
+      try {
+        const { sendOrganizerEventCreatedEmail } = await import('./email')
+        const eventLink = `${window.location.origin}/event/${docRef.id}/admin`
+        
+        // Convert date to string if it's a Date object
+        let eventDateString: string
+        if (typeof eventData.date === 'string') {
+          eventDateString = eventData.date
+        } else if (eventData.date instanceof Date) {
+          eventDateString = eventData.date.toISOString().split('T')[0]
+        } else {
+          eventDateString = new Date().toISOString().split('T')[0]
+        }
+        
+        await sendOrganizerEventCreatedEmail({
+          organizerEmail: organizerEmailFinal,
+          organizerName: organizerNameFinal || 'Organizer',
+          eventName: eventData.name,
+          eventDate: eventDateString,
+          eventTime: eventData.time || '',
+          eventVenue: eventData.venue || '',
+          eventLink,
+        })
+        console.log('✅ Organizer event created email sent')
+      } catch (emailError) {
+        // Don't fail event creation if email fails
+        console.error('❌ Error sending organizer event created email:', emailError)
+      }
+    }
+    
     return docRef.id
   } catch (error) {
     console.error('❌ Error creating event:', error)

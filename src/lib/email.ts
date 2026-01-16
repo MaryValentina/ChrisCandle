@@ -62,6 +62,16 @@ interface OrganizerNotificationEmailData {
   eventLink: string
 }
 
+interface OrganizerEventCreatedEmailData {
+  organizerEmail: string
+  organizerName: string
+  eventName: string
+  eventDate: string
+  eventTime: string
+  eventVenue: string
+  eventLink: string
+}
+
 /**
  * Get email configuration from environment variables
  */
@@ -482,6 +492,90 @@ export async function sendOrganizerNotificationEmail(data: OrganizerNotification
     console.log('✅ Organizer notification email sent to:', data.organizerEmail)
   } catch (error) {
     console.error('❌ Error sending organizer notification email:', error)
+    throw error
+  }
+}
+
+/**
+ * Generate HTML email template for organizer event creation confirmation
+ */
+function generateOrganizerEventCreatedEmailHTML(data: OrganizerEventCreatedEmailData): string {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Event Created Successfully - ${data.eventName}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
+      <div style="background: linear-gradient(135deg, #990000 0%, #b30000 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: #ffd700; margin: 0; font-size: 32px;">🎄 ChrisCandle</h1>
+      </div>
+      <div style="background: #ffffff; padding: 30px; border: 2px solid #990000; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="color: #990000; margin-top: 0; text-align: center;">🎉 Event Created Successfully!</h2>
+        <p>Hi ${data.organizerName},</p>
+        <p>Great news! Your Secret Santa event has been created and you've been automatically added as a participant.</p>
+        
+        <div style="background: linear-gradient(135deg, #228B22 0%, #32CD32 100%); padding: 20px; border-radius: 10px; margin: 30px 0; text-align: center; color: white;">
+          <h3 style="margin: 0 0 10px 0; font-size: 24px;">${data.eventName}</h3>
+          <div style="font-size: 48px; margin: 10px 0;">🎁</div>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #990000;">
+          <p style="margin: 5px 0; color: #666;"><strong>📅 Date:</strong> ${new Date(data.eventDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>🕒 Time:</strong> ${data.eventTime || 'Not specified'}</p>
+          <p style="margin: 5px 0; color: #666;"><strong>📍 Venue:</strong> ${data.eventVenue || 'Not specified'}</p>
+        </div>
+
+        <div style="background: #fff8dc; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+          <h3 style="color: #f59e0b; margin-top: 0;">✅ You're All Set!</h3>
+          <p style="margin: 5px 0;">You've been successfully added as a participant in your event.</p>
+          <p style="margin: 5px 0;">Share the event link with your friends and family to invite them to join!</p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${data.eventLink}" style="display: inline-block; background: #990000; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 5px;">
+            Manage Event
+          </a>
+        </div>
+
+        <div style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #228B22;">
+          <h3 style="color: #228B22; margin-top: 0;">📋 Next Steps:</h3>
+          <ul style="margin: 10px 0; padding-left: 20px; color: #666;">
+            <li style="margin: 5px 0;">Share the event link with participants</li>
+            <li style="margin: 5px 0;">Wait for participants to join</li>
+            <li style="margin: 5px 0;">Run the draw when everyone is ready</li>
+            <li style="margin: 5px 0;">Participants will receive their Secret Santa matches via email</li>
+          </ul>
+        </div>
+
+        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+          Happy organizing! 🎄
+        </p>
+      </div>
+      <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+        <p>This email was sent by ChrisCandle Secret Santa app.</p>
+      </div>
+    </body>
+    </html>
+  `
+}
+
+/**
+ * Send confirmation email to organizer when event is created
+ */
+export async function sendOrganizerEventCreatedEmail(data: OrganizerEventCreatedEmailData): Promise<void> {
+  try {
+    const html = generateOrganizerEventCreatedEmailHTML(data)
+    await sendEmail({
+      to: data.organizerEmail,
+      subject: `🎉 Your event "${data.eventName}" has been created!`,
+      html,
+    })
+    console.log('✅ Organizer event created email sent to:', data.organizerEmail)
+  } catch (error) {
+    console.error('❌ Error sending organizer event created email:', error)
     throw error
   }
 }

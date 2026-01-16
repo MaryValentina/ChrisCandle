@@ -19,9 +19,8 @@ async function initializeAnalytics() {
 // Start analytics initialization (don't await - let it run in background)
 initializeAnalytics()
 
-console.log("Firebase API Key:", import.meta.env.VITE_FIREBASE_API_KEY);
-console.log("SendGrid API Key:", import.meta.env.VITE_SENDGRID_API_KEY);
-console.log("SendGrid From Email:", import.meta.env.VITE_SENDGRID_FROM_EMAIL);
+// Note: SendGrid API key is server-side only (in Vercel environment variables)
+// It should NOT be exposed to the client for security reasons
 
 // Verify root element exists
 const rootElement = document.getElementById('root')
