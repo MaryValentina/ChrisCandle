@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Navigation from './components/features/Navigation'
 import ProtectedRoute from './components/ProtectedRoute'
 import LandingPage from './pages/LandingPage'
-import JoinPage from './pages/JoinPage'
 import HowItWorksPage from './pages/HowItWorksPage'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
@@ -19,7 +18,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/join" element={<JoinPage />} />
+        <Route path="/join" element={<Navigate to="/" replace />} />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/auth" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
