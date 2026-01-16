@@ -260,19 +260,21 @@ const HowItWorksPage = () => {
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="text-center mt-16">
-          <p className="font-body text-snow-white/60 mb-4">Ready to spread some holiday magic?</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/create-event"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-gold to-gold-light text-christmas-red-900 font-body font-semibold rounded-full hover:shadow-gold-lg transition-all duration-300"
-            >
-              <Crown className="w-5 h-5" />
-              Create Event
-            </Link>
+        {/* Bottom CTA - Only show for organizers */}
+        {activeTab === 'organizer' && (
+          <div className="text-center mt-16">
+            <p className="font-body text-snow-white/60 mb-4">Ready to spread some holiday magic?</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/create-event"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-r from-gold to-gold-light text-christmas-red-900 font-body font-semibold rounded-full hover:shadow-gold-lg transition-all duration-300"
+              >
+                <Crown className="w-5 h-5" />
+                Create Event
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
