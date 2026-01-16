@@ -153,9 +153,9 @@ const CreateEventPage = () => {
                         value={formData.date}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         required
-                        className="bg-christmas-red-900/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20"
+                        className="bg-christmas-red-900/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       />
-                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold/50 pointer-events-none" />
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold pointer-events-none z-10" />
                     </div>
                   </div>
 
