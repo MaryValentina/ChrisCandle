@@ -138,7 +138,7 @@ const CreateEventPage = () => {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
+                      className="!bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 autofill:!bg-christmas-red-deep/50 autofill:!text-snow-white"
                     />
                   </div>
 
@@ -153,7 +153,7 @@ const CreateEventPage = () => {
                         value={formData.date}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         required
-                        className="bg-christmas-red-900/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className="!bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 autofill:!bg-christmas-red-deep/50 autofill:!text-snow-white [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       />
                       <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold pointer-events-none z-10" />
                     </div>
@@ -170,7 +170,7 @@ const CreateEventPage = () => {
                         value={formData.time}
                         onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                         required
-                        className="bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className="!bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 autofill:!bg-christmas-red-deep/50 autofill:!text-snow-white [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       />
                       <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold pointer-events-none z-10" />
                     </div>
@@ -187,7 +187,7 @@ const CreateEventPage = () => {
                       value={formData.venue}
                       onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
                       required
-                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
+                      className="!bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 autofill:!bg-christmas-red-deep/50 autofill:!text-snow-white"
                     />
                   </div>
 
@@ -217,7 +217,7 @@ const CreateEventPage = () => {
                         placeholder="e.g., 25"
                         value={formData.budget}
                         onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                        className="flex-1 bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20"
+                        className="flex-1 !bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 autofill:!bg-christmas-red-deep/50 autofill:!text-snow-white"
                       />
                     </div>
                   </div>
@@ -232,7 +232,7 @@ const CreateEventPage = () => {
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       rows={4}
-                      className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none"
+                      className="!bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none"
                     />
                   </div>
 
