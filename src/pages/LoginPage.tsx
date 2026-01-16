@@ -35,9 +35,16 @@ export default function LoginPage() {
       navigate('/my-events');
     } catch (err: any) {
       console.error('Login error:', err);
+      // Handle different Firebase Auth error codes
       if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email');
-      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Please sign in');
+      } else if (err.code === 'auth/invalid-credential') {
+        // Firebase returns 'auth/invalid-credential' for both user-not-found and wrong-password
+        // when email enumeration protection is enabled (default for newer projects)
+        // Since we can't reliably distinguish, default to "Please sign in" 
+        // This covers the case when user enters a new email that isn't registered
+        setError('Please sign in');
+      } else if (err.code === 'auth/wrong-password') {
         setError('Incorrect password');
       } else if (err.code === 'auth/invalid-email') {
         setError('Invalid email address');
