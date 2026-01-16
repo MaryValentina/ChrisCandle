@@ -92,7 +92,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="p-4 bg-red-500/20 border-2 border-red-400/50 rounded-xl backdrop-blur-sm">
-                <p className="text-sm text-red-200">{error}</p>
+                <p className="text-sm text-red-200 text-center">{error}</p>
               </div>
             )}
 

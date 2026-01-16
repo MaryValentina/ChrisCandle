@@ -97,7 +97,7 @@ export default function ParticipantForm({
             placeholder="Enter participant name"
           />
           {errors.name && (
-            <p className="mt-1 text-sm text-red-300">{errors.name.message}</p>
+            <p className="mt-1 text-sm text-red-300 text-center">{errors.name.message}</p>
           )}
         </div>
 
@@ -123,7 +123,7 @@ export default function ParticipantForm({
             placeholder="email@example.com"
           />
           {errors.email && (
-            <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
+            <p className="mt-1 text-sm text-red-300 text-center">{errors.email.message}</p>
           )}
         </div>
 

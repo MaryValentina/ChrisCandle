@@ -1089,7 +1089,7 @@ Looking forward to celebrating together!`
 
         {/* Error Message */}
         {error && (
-          <div className="mt-6 p-4 bg-destructive/20 border border-destructive/40 text-destructive rounded-xl font-body">
+          <div className="mt-6 p-4 bg-destructive/20 border border-destructive/40 text-destructive rounded-xl font-body text-center">
             {error}
           </div>
         )}

@@ -102,7 +102,7 @@ export default function JoinEventModal({
                 autoFocus
               />
               {errors.name && (
-                <p className="mt-1 text-sm text-red-300">{errors.name.message}</p>
+                <p className="mt-1 text-sm text-red-300 text-center">{errors.name.message}</p>
               )}
             </div>
 
@@ -123,7 +123,7 @@ export default function JoinEventModal({
                 disabled={isSubmitting}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
+                <p className="mt-1 text-sm text-red-300 text-center">{errors.email.message}</p>
               )}
               <p className="mt-1 text-xs text-snow-white/60">
                 We'll send you a confirmation email
@@ -153,7 +153,7 @@ export default function JoinEventModal({
             {/* Error message */}
             {error && (
               <div className="p-4 bg-red-500/20 border-2 border-red-400/50 rounded-xl backdrop-blur-sm">
-                <p className="text-sm text-red-200">{error}</p>
+                <p className="text-sm text-red-200 text-center">{error}</p>
               </div>
             )}
 

@@ -1083,7 +1083,7 @@ export default function EventPage() {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-400/50 text-red-200 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-400/50 text-red-200 rounded-lg text-sm text-center">
                 {error}
               </div>
             )}
