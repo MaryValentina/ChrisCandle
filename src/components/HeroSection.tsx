@@ -24,7 +24,7 @@ const HeroSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Frame - Santa */}
           <div className="flex justify-center lg:justify-center order-2 lg:order-1">
-            <div className="w-80 h-[450px] md:w-[450px] md:h-[550px] flex items-center justify-center animate-float">
+            <div className="w-64 sm:w-80 h-[350px] sm:h-[450px] md:w-[450px] md:h-[550px] flex items-center justify-center animate-float">
               <img src={santaImage} alt="Santa Claus shushing" className="w-full h-full object-contain drop-shadow-2xl" />
             </div>
           </div>
@@ -37,7 +37,7 @@ const HeroSection = () => {
             </h1>
 
             {/* Tagline */}
-            <p className="font-body text-sm md:text-base text-snow-white/90 font-light whitespace-nowrap">
+            <p className="font-body text-sm md:text-base text-snow-white/90 font-light">
               A festive Secret Santa app for spreading holiday joy
             </p>
 

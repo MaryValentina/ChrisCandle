@@ -62,14 +62,14 @@ export default function LoginPage() {
       <Snowflakes />
 
       {/* Decorative Elements */}
-      <div className="absolute top-10 left-10 text-gold opacity-20 animate-float">
-        <Gift size={60} />
+      <div className="absolute top-10 left-4 md:left-10 text-gold opacity-20 animate-float">
+        <Gift size={40} className="md:w-[60px] md:h-[60px]" />
       </div>
-      <div className="absolute bottom-20 right-10 text-gold opacity-20 animate-float" style={{ animationDelay: '1s' }}>
-        <Gift size={50} />
+      <div className="absolute bottom-20 right-4 md:right-10 text-gold opacity-20 animate-float" style={{ animationDelay: '1s' }}>
+        <Gift size={35} className="md:w-[50px] md:h-[50px]" />
       </div>
-      <div className="absolute top-1/4 right-20 text-gold opacity-15 animate-float" style={{ animationDelay: '2s' }}>
-        <Gift size={40} />
+      <div className="absolute top-1/4 right-4 md:right-20 text-gold opacity-15 animate-float" style={{ animationDelay: '2s' }}>
+        <Gift size={30} className="md:w-[40px] md:h-[40px]" />
       </div>
 
       {/* Main Card */}

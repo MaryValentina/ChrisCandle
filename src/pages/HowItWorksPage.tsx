@@ -120,10 +120,10 @@ const HowItWorksPage = () => {
       <Navbar />
       
       {/* Decorative Elements */}
-      <div className="absolute top-40 left-10 text-6xl opacity-20 animate-float">🎄</div>
-      <div className="absolute top-60 right-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
-      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
-      <div className="absolute bottom-60 right-10 text-6xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>❄️</div>
+      <div className="absolute top-40 left-4 md:left-10 text-3xl md:text-6xl opacity-20 animate-float">🎄</div>
+      <div className="absolute top-60 right-4 md:right-20 text-2xl md:text-5xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-4 md:left-20 text-2xl md:text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      <div className="absolute bottom-60 right-4 md:right-10 text-3xl md:text-6xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>❄️</div>
 
       <div className="container mx-auto max-w-6xl px-4 pt-24 pb-16 relative z-10">
         {/* Header */}

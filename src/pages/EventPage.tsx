@@ -541,9 +541,9 @@ export default function EventPage() {
       <Snowflakes />
       
       {/* Decorative elements */}
-      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">🎄</div>
-      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
-      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      <div className="absolute top-20 left-4 md:left-10 text-3xl md:text-6xl opacity-20 animate-float">🎄</div>
+      <div className="absolute top-40 right-4 md:right-20 text-2xl md:text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-4 md:left-20 text-2xl md:text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
       
       <Navbar />
       
@@ -558,9 +558,9 @@ export default function EventPage() {
             >
               ← Back to Home
             </Button>
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h1 className="font-display text-4xl md:text-5xl text-gradient-gold mb-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4 mb-6">
+              <div className="flex-1">
+                <h1 className="font-display text-3xl sm:text-4xl md:text-5xl text-gradient-gold mb-2">
                   🎄 {event.name}
                 </h1>
               </div>

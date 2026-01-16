@@ -79,9 +79,9 @@ const CreateEventPage = () => {
       <Snowflakes />
       
       {/* Decorative elements */}
-      <div className="absolute top-32 left-10 text-6xl opacity-20 animate-float">🎅</div>
-      <div className="absolute top-60 right-10 text-5xl opacity-20 animate-float" style={{ animationDelay: '1.5s' }}>🦌</div>
-      <div className="absolute bottom-20 left-1/4 text-4xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>🔔</div>
+      <div className="absolute top-32 left-4 md:left-10 text-3xl md:text-6xl opacity-20 animate-float">🎅</div>
+      <div className="absolute top-60 right-4 md:right-10 text-2xl md:text-5xl opacity-20 animate-float" style={{ animationDelay: '1.5s' }}>🦌</div>
+      <div className="absolute bottom-20 left-1/4 text-2xl md:text-4xl opacity-20 animate-float" style={{ animationDelay: '0.5s' }}>🔔</div>
       
       <Navbar />
       
@@ -106,7 +106,7 @@ const CreateEventPage = () => {
 
         {/* Form Card */}
         <div className="max-w-2xl mx-auto">
-          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-8 md:p-10 shadow-gold">
+          <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 sm:p-8 md:p-10 shadow-gold">
             {step === 1 ? (
               <>
                 <div className="flex items-center gap-3 mb-6">

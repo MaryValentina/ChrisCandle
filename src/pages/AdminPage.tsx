@@ -645,9 +645,9 @@ Looking forward to celebrating together!`
       <Snowflakes />
       
       {/* Decorative elements */}
-      <div className="absolute top-20 left-10 text-6xl opacity-20 animate-float">🔐</div>
-      <div className="absolute top-40 right-20 text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
-      <div className="absolute bottom-40 left-20 text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
+      <div className="absolute top-20 left-4 md:left-10 text-3xl md:text-6xl opacity-20 animate-float">🔐</div>
+      <div className="absolute top-40 right-4 md:right-20 text-2xl md:text-4xl opacity-20 animate-float" style={{ animationDelay: '1s' }}>⭐</div>
+      <div className="absolute bottom-40 left-4 md:left-20 text-2xl md:text-5xl opacity-20 animate-float" style={{ animationDelay: '2s' }}>🎁</div>
       
       <Navbar />
       
@@ -1127,7 +1127,7 @@ Looking forward to celebrating together!`
                 value={shareMessage}
                 onChange={(e) => setShareMessage(e.target.value)}
                 rows={12}
-                className="bg-christmas-red-900/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none font-body"
+                className="bg-christmas-red-deep/50 border-gold/30 text-snow-white placeholder:text-snow-white/40 focus:border-gold focus:ring-gold/20 resize-none font-body"
               />
             </div>
             
