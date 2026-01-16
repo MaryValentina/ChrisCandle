@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { getEvent, subscribeToEvent, addParticipant, updateEvent, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail, getDb, updateParticipantWishlist, removeParticipant } from '../lib/firebase'
+import { getEvent, subscribeToEvent, addParticipant, getAssignments, createEvent as createFirebaseEvent, findParticipantByEmail, getDb, updateParticipantWishlist, removeParticipant } from '../lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
 import { sendWelcomeEmail, sendOrganizerNotificationEmail } from '../lib/email'
 import { useEventStore } from '../stores/eventStore'
@@ -164,16 +164,25 @@ export default function EventPage() {
             updateEventInStore(updatedEvent)
 
             // Fetch assignments if status changed to drawn
-            if (updatedEvent.status === 'drawn' && assignments.length === 0) {
-              setIsLoadingAssignments(true)
-              try {
-                const fetchedAssignments = await getAssignments(updatedEvent.id)
-                setAssignments(fetchedAssignments)
-              } catch (err) {
-                console.error('Error fetching assignments:', err)
-              } finally {
-                setIsLoadingAssignments(false)
-              }
+            // Check current assignments state using a ref to avoid stale closure
+            if (updatedEvent.status === 'drawn') {
+              setAssignments((currentAssignments) => {
+                // Only fetch if we don't have assignments yet
+                if (currentAssignments.length === 0) {
+                  setIsLoadingAssignments(true)
+                  getAssignments(updatedEvent.id)
+                    .then((fetchedAssignments) => {
+                      setAssignments(fetchedAssignments)
+                    })
+                    .catch((err) => {
+                      console.error('Error fetching assignments:', err)
+                    })
+                    .finally(() => {
+                      setIsLoadingAssignments(false)
+                    })
+                }
+                return currentAssignments
+              })
             }
           }
         })
@@ -544,7 +553,7 @@ export default function EventPage() {
           <div className="mb-8">
             <Button
               onClick={() => navigate('/')}
-              variant="ghost"
+              variant="outline"
               className="text-gold hover:text-gold-light mb-4"
             >
               ← Back to Home
@@ -791,7 +800,7 @@ export default function EventPage() {
                 )}
 
                 {/* Edit Wishlist and Leave Event buttons - only show if event hasn't been drawn */}
-                {event.status !== 'drawn' && event.status !== 'completed' && (
+                {event.status === 'active' && (
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={() => {

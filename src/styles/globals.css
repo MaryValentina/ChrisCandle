@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
 
+/* Tailwind CSS directives - these are valid and required for Tailwind to work */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,6 +73,7 @@
   }
 
   body {
+    /* Tailwind @apply directive - valid Tailwind syntax */
     @apply bg-background text-foreground antialiased;
     font-family: 'Poppins', sans-serif;
     margin: 0;
@@ -181,26 +183,26 @@
   .shadow-gold-lg {
     box-shadow: var(--shadow-gold-lg);
   }
+}
 
-  /* Override browser autofill styling */
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active,
-  textarea:-webkit-autofill,
-  textarea:-webkit-autofill:hover,
-  textarea:-webkit-autofill:focus,
-  textarea:-webkit-autofill:active,
-  select:-webkit-autofill,
-  select:-webkit-autofill:hover,
-  select:-webkit-autofill:focus,
-  select:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px hsl(0, 75%, 12%) inset !important;
-    -webkit-text-fill-color: hsl(0, 0%, 98%) !important;
-    box-shadow: 0 0 0 30px hsl(0, 75%, 12%) inset !important;
-    background-color: hsl(0, 75%, 12%) !important;
-    color: hsl(0, 0%, 98%) !important;
-  }
+/* Override browser autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px hsl(0, 75%, 12%) inset !important;
+  -webkit-text-fill-color: hsl(0, 0%, 98%) !important;
+  box-shadow: 0 0 0 30px hsl(0, 75%, 12%) inset !important;
+  background-color: hsl(0, 75%, 12%) !important;
+  color: hsl(0, 0%, 98%) !important;
 }
 
 /* Snowflake Animations */
