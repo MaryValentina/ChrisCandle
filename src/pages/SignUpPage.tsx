@@ -64,7 +64,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center">
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center py-8 md:py-12">
       {/* Snowflakes Background */}
       <Snowflakes />
 
@@ -80,7 +80,7 @@ export default function SignUpPage() {
       </div>
 
       {/* Main Card */}
-      <div className="relative z-10 w-full max-w-md mx-4">
+      <div className="relative z-10 w-full max-w-md mx-4 mt-auto mb-auto">
         {/* Glowing background effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-gold/10 via-transparent to-gold/5 rounded-3xl blur-xl" />
         
