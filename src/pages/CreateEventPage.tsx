@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
-import { Calendar, Gift } from 'lucide-react';
+import { Calendar, Gift, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { createEvent as createFirebaseEvent } from '../lib/firebase';
 import type { EventData } from '../types';
@@ -163,14 +163,17 @@ const CreateEventPage = () => {
                     <Label htmlFor="time" className="text-snow-white">
                       Time <span className="text-gold">*</span>
                     </Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={formData.time}
-                      onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                      required
-                      className="bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="time"
+                        type="time"
+                        value={formData.time}
+                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                        required
+                        className="bg-christmas-red-deep/50 border-gold/30 text-snow-white focus:border-gold focus:ring-gold/20 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      />
+                      <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gold pointer-events-none z-10" />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
