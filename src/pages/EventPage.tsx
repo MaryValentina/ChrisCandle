@@ -140,8 +140,8 @@ export default function EventPage() {
           updateEventInStore(fetchedEvent)
         }
 
-        // Fetch assignments if event is drawn
-        if (fetchedEvent.status === 'drawn') {
+        // Fetch assignments if event is drawn, completed, or expired (expired may have had draw)
+        if (fetchedEvent.status === 'drawn' || fetchedEvent.status === 'completed' || fetchedEvent.status === 'expired') {
           setIsLoadingAssignments(true)
           try {
             const fetchedAssignments = await getAssignments(fetchedEvent.id)
@@ -163,9 +163,8 @@ export default function EventPage() {
             setEvent(updatedEvent)
             updateEventInStore(updatedEvent)
 
-            // Fetch assignments if status changed to drawn
-            // Check current assignments state using a ref to avoid stale closure
-            if (updatedEvent.status === 'drawn') {
+            // Fetch assignments if status changed to drawn, completed, or expired
+            if (updatedEvent.status === 'drawn' || updatedEvent.status === 'completed' || updatedEvent.status === 'expired') {
               setAssignments((currentAssignments) => {
                 // Only fetch if we don't have assignments yet
                 if (currentAssignments.length === 0) {
@@ -392,8 +391,9 @@ export default function EventPage() {
     ? event.participants.find((p) => p.id === currentParticipantId)
     : null
 
-  // Find the current participant's assignment (if event is drawn)
-  const currentParticipantAssignment = currentParticipantId && event.status === 'drawn'
+  // Find the current participant's assignment (if event is drawn, completed, or expired with assignments)
+  const eventHasRevealedPairings = event.status === 'drawn' || event.status === 'completed' || event.status === 'expired'
+  const currentParticipantAssignment = currentParticipantId && eventHasRevealedPairings && assignments.length > 0
     ? assignments.find((a) => a.giverId === currentParticipantId)
     : null
 
@@ -714,8 +714,8 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Join/Status Section - Disabled if event is expired, completed, or drawn */}
-          {event.status === 'expired' || event.status === 'completed' ? (
+          {/* Join/Status Section - Expired: closed; Drawn/Completed: re-enter to view match; Active: join */}
+          {event.status === 'expired' ? (
             <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
               <div className="text-center">
                 <div className="text-5xl mb-4">🔒</div>
@@ -727,7 +727,7 @@ export default function EventPage() {
                 </p>
               </div>
             </div>
-          ) : event.status === 'drawn' && !currentParticipant ? (
+          ) : eventHasRevealedPairings && !currentParticipant ? (
             <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-6 md:p-8 mb-6">
               <div className="text-center">
                 <div className="text-5xl mb-4">🎁</div>
@@ -825,8 +825,8 @@ export default function EventPage() {
             </div>
           )}
 
-          {/* Your Match Section - Only shown if event is drawn and participant has an assignment */}
-          {event.status === 'drawn' && currentParticipant && currentParticipantAssignment && currentParticipantMatch && (
+          {/* Your Match Section - Shown when event has pairings (drawn/completed/expired) and participant has an assignment */}
+          {eventHasRevealedPairings && currentParticipant && currentParticipantAssignment && currentParticipantMatch && (
             <div className="mb-6">
               {isLoadingAssignments ? (
                 <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-2xl shadow-gold p-8 text-center">
@@ -849,7 +849,7 @@ export default function EventPage() {
           )}
 
           {/* Draw Status Message */}
-          {event.status === 'drawn' && currentParticipant && !currentParticipantAssignment && !isLoadingAssignments && (
+          {eventHasRevealedPairings && currentParticipant && !currentParticipantAssignment && !isLoadingAssignments && (
             <div className="mb-6 p-6 bg-gold/20 border-2 border-gold/40 rounded-xl text-center backdrop-blur-sm">
               <div className="text-4xl mb-2">⏳</div>
               <h3 className="font-bold text-gold mb-2">Draw Complete</h3>

@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null)
   const [wishlistText, setWishlistText] = useState('')
   const [isEditingWishlist, setIsEditingWishlist] = useState(false)
+  const [expiredEventHasAssignments, setExpiredEventHasAssignments] = useState<boolean | null>(null)
   const unsubscribeRef = useRef<(() => void) | null>(null)
   const isEditingRef = useRef(false)
   
@@ -74,6 +75,25 @@ export default function AdminPage() {
   useEffect(() => {
     isEditingRef.current = isEditing
   }, [isEditing])
+
+  // When event is expired, check if draw was run (assignments exist) so we show "finished" UI
+  useEffect(() => {
+    if (!event || event.status !== 'expired') {
+      setExpiredEventHasAssignments(null)
+      return
+    }
+    let cancelled = false
+    getAssignments(event.id)
+      .then((assignments) => {
+        if (!cancelled) setExpiredEventHasAssignments(assignments.length > 0)
+      })
+      .catch(() => {
+        if (!cancelled) setExpiredEventHasAssignments(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [event?.id, event?.status])
 
   // Fetch event and set up real-time subscription
   useEffect(() => {
@@ -472,8 +492,8 @@ Looking forward to celebrating together!`
         return `${displayHours}:${displayMinutes} ${period}`
       }
 
-      // Check if draw has been completed
-      if (event.status === 'drawn') {
+      // Check if draw has been completed (drawn, completed, or expired with assignments)
+      if (event.status === 'drawn' || event.status === 'completed' || (event.status === 'expired' && (await getAssignments(event.id)).length > 0)) {
         // Resend draw email
         const assignments = await getAssignments(event.id)
         const assignment = assignments.find((a) => a.giverId === participantId)
@@ -639,6 +659,11 @@ Looking forward to celebrating together!`
   }
 
   const statusConfig = getStatusConfig(event.status)
+  // Expired events that had a draw are treated as "finished" (same UI as drawn/completed)
+  const isFinishedEvent =
+    event.status === 'drawn' ||
+    event.status === 'completed' ||
+    (event.status === 'expired' && expiredEventHasAssignments === true)
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -709,17 +734,23 @@ Looking forward to celebrating together!`
             <div className={`text-2xl font-display capitalize ${statusConfig.color}`}>
               {event.status}
             </div>
-            <p className="text-xs text-snow-white/50 mt-1 font-body">{statusConfig.label}</p>
+            <p className="text-xs text-snow-white/50 mt-1 font-body">
+              {event.status === 'expired' && isFinishedEvent ? 'Event finished' : statusConfig.label}
+            </p>
           </div>
         </div>
 
-        {/* Share Event Message Section - Moved to Top */}
+        {/* Share Event Section - Invite (active only) or Share details (finished: drawn/completed/expired with draw) */}
         <div className="bg-christmas-red-dark/40 backdrop-blur-sm border border-gold/20 rounded-3xl p-6 md:p-8 mb-8 shadow-gold">
           <h2 className="font-display text-2xl md:text-3xl text-gradient-gold mb-3 text-center">
-            🎁 Share this event with your friends!
+            {isFinishedEvent
+              ? '📋 Share the event details'
+              : '🎁 Share this event with your friends!'}
           </h2>
           <p className="text-snow-white/70 mb-6 text-center text-sm md:text-base">
-            Copy and share the invitation message to invite participants to your Secret Santa event.
+            {isFinishedEvent
+              ? 'Copy and share the event details with participants.'
+              : 'Copy and share the invitation message to invite participants to your Secret Santa event.'}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -730,7 +761,7 @@ Looking forward to celebrating together!`
               className="w-full sm:w-auto shadow-gold hover:scale-105 transition-transform"
             >
               <Send className="mr-2 h-5 w-5" />
-              Share Event
+              {isFinishedEvent ? 'Share Event Details' : 'Share Event'}
             </Button>
           </div>
         </div>
@@ -742,7 +773,7 @@ Looking forward to celebrating together!`
             Event Details
           </h2>
           
-          {isEditing ? (
+          {(isEditing && !isFinishedEvent) ? (
             <div className="space-y-4 mb-6">
               <div>
                 <label htmlFor="editName" className="block text-sm font-semibold text-snow-white/80 mb-2 font-body">
@@ -918,8 +949,8 @@ Looking forward to celebrating together!`
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* Edit Wishlist button - only show if event hasn't been drawn */}
-                    {event.status !== 'drawn' && event.status !== 'completed' && (
+                    {/* Edit Wishlist button - only show if event not finished (draw not run or not yet run) */}
+                    {!isFinishedEvent && (
                       <button
                         onClick={() => handleEditWishlist(participant.id)}
                         className="p-2 text-gold hover:text-gold-light hover:bg-gold/10 rounded-lg transition-colors"
@@ -993,13 +1024,13 @@ Looking forward to celebrating together!`
               <div className="p-4 bg-christmas-red-dark/30 rounded-xl text-snow-white/60 text-center font-body border border-gold/20">
                 {totalCount < 2
                   ? '⚠️ Need at least 2 participants to run draw'
-                  : event.status === 'drawn'
-                  ? '✅ Draw has already been completed'
+                  : isFinishedEvent
+                  ? '✅ Drawn'
                   : '🚫 Cannot run draw at this time'}
               </div>
             )}
 
-            {event.status === 'drawn' && (
+            {isFinishedEvent && (
               <Button
                 onClick={() => navigate(`/results/${event.id}`)}
                 variant="outline"
@@ -1042,8 +1073,8 @@ Looking forward to celebrating together!`
               </div>
             ) : (
               <>
-                {/* For drawn/completed events, only show Delete Event */}
-                {event.status === 'drawn' || event.status === 'completed' ? (
+                {/* For finished events (drawn/completed/expired with draw), only show Delete Event */}
+                {isFinishedEvent ? (
                   <div>
                     <Button
                       onClick={() => setShowDeleteModal(true)}
